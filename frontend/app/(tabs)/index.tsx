@@ -1,16 +1,26 @@
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, Text } from 'react-native';
 
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Link } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState, } from 'react';
 import { Button } from 'react-native';
+import { api } from '@/lib/api';
 
 export default function HomeScreen() {
+  //Testing frontend to backend connection by fetching the users email
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<{ email: string }>('/api/users/me')
+      .then(data => setEmail(data.email))
+      .catch(err => console.error(err));
+  }, []);
+
   // Testing Supabase connection 
   useEffect(() => {
     async function testConnection() {
@@ -30,13 +40,15 @@ export default function HomeScreen() {
           style={styles.reactLogo}
         />
       }>
+      
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Welcome!</ThemedText>
         <HelloWave />
       </ThemedView>
 
-      {/*temp sign out button*/}
+      {/*temp sign out button and testing auth connection to backend*/}
       <ThemedView style={styles.stepContainer}>
+        <Text style={{ color: 'white' }}>Logged in as: {email ?? 'Loading...'}</Text>
         <Button title="Sign Out" onPress={() => supabase.auth.signOut()} />
       </ThemedView>
 
