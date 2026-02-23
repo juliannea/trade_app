@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { supabase } from './supabase'
+import userRoutes from './routes/users';
 
 dotenv.config();
 
@@ -19,6 +20,9 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 
+//testing to make sure auth is working 
+app.use('/api/users', userRoutes);
+
 
 // testing supabase connection: selects all columns from the User table and returns as json response
 app.get('/users', async (req, res) => {
@@ -29,3 +33,5 @@ app.get('/users', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message })
   res.json(data)
 })
+
+
