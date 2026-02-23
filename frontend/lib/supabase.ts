@@ -8,9 +8,9 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    ...(Platform.OS !== "web" ? { storage: AsyncStorage } : {}),
-    autoRefreshToken: true,
-    persistSession: true,
+    ...(Platform.OS !== "web" ? { storage: AsyncStorage } : {}), //stores the user session locally on device 
+    autoRefreshToken: true, //automatically refreshes when the session expires
+    persistSession: true, //so doesn't log out automatically 
     detectSessionInUrl: false,
     lock: processLock,
   },

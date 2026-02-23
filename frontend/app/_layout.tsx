@@ -19,18 +19,20 @@ export default function RootLayout() {
   const [claims, setClaims] = useState<JwtPayload | null>(null);
 
   useEffect(() => {
-    supabase.auth.getClaims().then(({ data }) => {
+    //checks if the user is signed in when app first starts
+    supabase.auth.getClaims().then(({ data }) => { 
       setClaims(data?.claims ?? null);
     });
 
-    supabase.auth.onAuthStateChange(() => {
+    //listens for changes in user's auth state: logged in or out 
+    supabase.auth.onAuthStateChange(() => { 
       supabase.auth.getClaims().then(({ data }) => {
         setClaims(data?.claims ?? null);
       });
     });
   }, []);
 
-  if (!claims) {
+  if (!claims) { //if user is not logged in show sign in/up screen
     return <Auth />;
   }
 
