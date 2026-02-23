@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Link } from 'expo-router';
 import { useEffect } from 'react';
+import { Button } from 'react-native';
 
 export default function HomeScreen() {
   // Testing Supabase connection 
@@ -33,6 +34,12 @@ export default function HomeScreen() {
         <ThemedText type="title">Welcome!</ThemedText>
         <HelloWave />
       </ThemedView>
+
+      {/*temp sign out button*/}
+      <ThemedView style={styles.stepContainer}>
+        <Button title="Sign Out" onPress={() => supabase.auth.signOut()} />
+      </ThemedView>
+
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 1: Try it</ThemedText>
         <ThemedText>
