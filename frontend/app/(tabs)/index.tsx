@@ -11,13 +11,23 @@ import { useEffect, useState, } from 'react';
 import { Button } from 'react-native';
 import { api } from '@/lib/api';
 
+//testing api call to backend 
+type UserProfile = {
+  user_id: string;
+  user_name: string;
+  user_first_name: string;
+  user_last_name: string;
+  user_email: string;
+  user_phone: string;
+};
+
 export default function HomeScreen() {
-  //Testing frontend to backend connection by fetching the users email
-  const [email, setEmail] = useState<string | null>(null);
+  //Testing frontend to backend connection by fetching the users data
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    api.get<{ email: string }>('/api/users/me')
-      .then(data => setEmail(data.email))
+    api.get<UserProfile>('/api/users')
+      .then(data => setUser(data))
       .catch(err => console.error(err));
   }, []);
 
@@ -48,7 +58,7 @@ export default function HomeScreen() {
 
       {/*temp sign out button and testing auth connection to backend*/}
       <ThemedView style={styles.stepContainer}>
-        <Text style={{ color: 'white' }}>Logged in as: {email ?? 'Loading...'}</Text>
+        <Text style={{ color: 'white' }}>Logged in as: {user ? user.user_email:'Loading...'}</Text>
         <Button title="Sign Out" onPress={() => supabase.auth.signOut()} />
       </ThemedView>
 
