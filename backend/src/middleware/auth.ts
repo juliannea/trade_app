@@ -24,7 +24,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  // 3. Attach the user info to the request so the route handler can use it
+  //attach the user info to the request so the route handler can use it
   req.userId = data.user.id;
   req.userEmail = data.user.email;
 
