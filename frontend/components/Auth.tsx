@@ -79,7 +79,7 @@ export default function Auth() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>{isSignup ? 'Create Account' : 'Welcome Back'}</Text>
+      <Text style={styles.title}>{isSignup ? 'Create Account' : 'Welcome to Delulu Exchange!'}</Text>
       <Text style={styles.subtitle}>
         {isSignup ? 'Sign up to start trading collectibles!' : 'Sign in to your account'}
       </Text>
@@ -153,6 +153,7 @@ export default function Auth() {
           title={isSignup ? 'Sign Up' : 'Sign In'}
           disabled={loading}
           onPress={isSignup ? signUpWithEmail: signInWithEmail}
+          buttonStyle={{ backgroundColor: '#6b21a8', borderRadius: 25 }}
         />
       </View>
 
@@ -176,17 +177,20 @@ export default function Auth() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 80,
+    backgroundColor: '#fdf6f0',
+    flexGrow: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 6,
+    color: '#6b21a8',
   },
   subtitle: {
     fontSize: 14,
-    color: '#888',
+    color: '#a78bca',
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -206,10 +210,10 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: 14,
-    color: '#888',
+    color: '#a78bca',
   },
   toggleLink: {
-    color: '#0a7ea4',
+    color: '#6b21a8',
     fontWeight: '600',
   },
 });
