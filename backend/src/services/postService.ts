@@ -77,6 +77,28 @@ export async function getPostsByCollection(collectionId: number) {
 
 //DELETE a post by the post_id, requires authentication   
 export async function deletePost(postId: number) {
+  //find the image path of the post 
+  const { data: post, error: fetchError } = await supabase
+    .from('Post')
+    .select('post_image_url')
+    .eq('post_id', postId)
+    .single();
+
+
+  if (fetchError) throw new AppError(fetchError.message, 500);
+
+  //delete the file from supabase storage 
+  if (post?.post_image_url) {
+    //extract path relative to bucket
+    const bucketPath = post.post_image_url.split('/post-images/')[1];
+
+    const { error: storageError } = await supabase.storage
+      .from('post-images')
+      .remove([bucketPath]);
+
+    if (storageError) throw new AppError(storageError.message, 500);
+  }
+
   const { error } = await supabase
     .from('Post')
     .delete()
