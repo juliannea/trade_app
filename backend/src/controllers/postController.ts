@@ -40,7 +40,7 @@ export async function getPostsByCollection(req: AuthRequest, res: Response) {
     const collectionId = Number(req.params.collectionId);
     if (isNaN(collectionId)) return res.status(400).json({ error: 'Invalid collection_id' });
 
-    const posts = await PostService.getPostsByCollection(collectionId);
+    const posts = await PostService.getPostsByCollection(collectionId, req.userId!);
     res.json(posts);
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });

@@ -64,11 +64,21 @@ export async function getOwnPosts(userId: string) {
 }
 
 //GET returns all created posts of a specific collection, requires authentication 
-export async function getPostsByCollection(collectionId: number) {
+export async function getPostsByCollection(collectionId: number, userId: string) {
   const { data, error } = await supabase
     .from('Post')
-    .select('post_id, collection_id, user_id, post_title, post_image_url, post_caption')
-    .eq('collection_id', collectionId);
+    .select(
+      `post_id, collection_id, post_title, post_image_url, post_caption,
+      User!Post_user_id_fkey(  
+        user_name
+      ),
+      Collection!Post_collection_id_fkey(
+        collection_name
+      )`
+    )
+    //user join to get the user_name of the post creator and collection join to get the collection name for each post in the feed
+    .eq('collection_id', collectionId)
+    .neq('user_id', userId); //exclude the users own posts from the collection feed
 
   if (error) throw new AppError(error.message, 500);
   if (!data || data.length === 0) throw new AppError('No posts found for this collection', 404);
