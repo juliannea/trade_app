@@ -55,7 +55,11 @@ export async function insertPost(
 export async function getOwnPosts(userId: string) {
   const {data, error} = await supabase
     .from('Post')
-    .select('post_id, collection_id, post_title, post_image_url, post_caption')
+    .select(`post_id, collection_id, post_title, post_image_url, post_caption,
+      Collection!Post_collection_id_fkey(
+        collection_name
+      )`) 
+      //collection join to get the collection name for each post in the users profile feed
     .eq('user_id', userId);
 
   if (error) throw new AppError(error.message, 500);
