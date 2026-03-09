@@ -7,6 +7,7 @@ import collectionRoutes from './routes/collections';
 import postRoutes from './routes/posts';
 import matchRoutes from './routes/matches';
 import swipeRoutes from './routes/swipes';
+import resetRouter from './routes/resetRouter';
 
 dotenv.config();
 
@@ -34,6 +35,10 @@ app.use('/api/matches', matchRoutes);
 
 //Swipe routes
 app.use('/api/swipes', swipeRoutes);
+
+
+//used to reset the database for testing and demo puproses, should be removed later
+app.use('/dev/reset', resetRouter);
 
 
 app.listen(PORT, () => {
