@@ -37,10 +37,16 @@ export async function swipe(userId: string, postId: string, direction: 'LEFT' | 
    //if the query returns a swipe, that means the user has already swiped on this post, so we throw a 400 error --> cannot swipe on the same post more than once
    if (existingSwipe) throw new AppError('Already swiped on this post', 400);
 
+   const {data: user} = await supabase
+      .from('User')
+      .select('user_name')
+      .eq('user_id', userId)
+      .single();
+
    //base cases passed, we can insert the swipe into the database
    const {error: insertError} = await supabase
       .from('Swipe')
-      .insert({ user_id: userId, post_id: postId, swipe_direction: direction });
+      .insert({ user_id: userId, post_id: postId, swipe_direction: direction, user_name: user?.user_name });
       
    if (insertError) throw new AppError(insertError.message, 500);
 
@@ -80,7 +86,7 @@ async function checkForMatch(swiperId: string, postOwnerId: string) {
 
    const {data:mutualSwipe} = await supabase
       .from('Swipe')
-      .select('swipe_id')
+      .select('user_id')
       .eq('user_id', postOwnerId)
       .in('post_id', myPosts.map(post => post.post_id))  // transform the array of posts into an array of post_ids to check if the post owner has swiped right on any of the swiper user's posts
       .eq('swipe_direction', 'RIGHT')
