@@ -56,3 +56,16 @@ export async function deletePost(req: AuthRequest, res: Response) {
     res.status(err.status ?? 500).json({ error: err.message });
   }
 }
+
+//GET returns all the posts the the user liked from another user they're matched with 
+export async function getLikedPostsFromMatch(req: AuthRequest, res: Response) {
+  try {
+    const matchId = Number(req.params.matchId);
+    if (isNaN(matchId)) return res.status(400).json({ error: 'Invalid match_id' });
+
+    const posts = await PostService.getLikedPostsFromMatch(req.userId!, matchId);
+    res.json(posts);
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+}

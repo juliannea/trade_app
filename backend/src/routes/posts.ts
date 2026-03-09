@@ -18,4 +18,7 @@ router.get('/collection/:collectionId', requireAuth, PostController.getPostsByCo
 //DELETE a post by the post_id, requires authentication  
 router.delete('/:postId', requireAuth, PostController.deletePost);
 
+//GET returns all the posts the the user liked from another user they're matched with 
+router.get('/match/:matchId/liked', requireAuth, PostController.getLikedPostsFromMatch);
+
 export default router;
