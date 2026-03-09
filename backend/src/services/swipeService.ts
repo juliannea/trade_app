@@ -71,7 +71,6 @@ export async function getUserSwipes(userId: string) {
 }
 
 
-//=============================== needs to fix==============================
 async function checkForMatch(swiperId: string, postOwnerId: string) {
    // get all of the swiper user's posts
    const {data:myPosts} = await supabase
