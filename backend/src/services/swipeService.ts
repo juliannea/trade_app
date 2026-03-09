@@ -31,7 +31,7 @@ export async function swipe(userId: string, postId: string, direction: 'LEFT' | 
       
    //Error handling for swipe query. 
    //if there's an error with the query itself, throw a 500 error. 
-   if (swipeError) throw new AppError(swipeError.message, 500);
+   if (swipeError && swipeError.code !== 'PGRST116') throw new AppError(swipeError.message, 500);
    //if the query returns a swipe, that means the user has already swiped on this post, so we throw a 400 error --> cannot swipe on the same post more than once
    if (existingSwipe) throw new AppError('Already swiped on this post', 400);
 
@@ -42,5 +42,63 @@ export async function swipe(userId: string, postId: string, direction: 'LEFT' | 
       
    if (insertError) throw new AppError(insertError.message, 500);
 
-  
+   if (direction === 'RIGHT') {
+      await checkForMatch(userId, post.user_id);
+   }
+
+   return { success: true };
+}
+
+
+
+// get all swipes by the current user (used to filter feed)
+export async function getUserSwipes(userId: string) {
+   const {data, error} = await supabase
+      .from('Swipe')
+      .select('post_id, direction')
+      .eq('user_id', userId);
+
+   if (error) throw new AppError(error.message, 500);
+   return data;
+}
+
+
+
+async function checkForMatch(swiperId: string, postOwnerId: string) {
+   // get all of the swiper user's posts
+   const {data:myPosts} = await supabase
+      .from('Post')
+      .select('post_id')
+      .eq('user_id', swiperId);
+
+   // if user has no posts they can't be matched
+   if (!myPosts || myPosts.length === 0) return;
+
+   const {data:mutualSwipe} = await supabase
+      .from('Swipe')
+      .select('swipe_id')
+      .eq('user_id', postOwnerId)
+      .in('post_id', myPosts.map(post => post.post_id))  // transform the array of posts into an array of post_ids to check if the post owner has swiped right on any of the swiper user's posts
+      .eq('direction', 'RIGHT')
+      .single();
+
+   // if the post owner hasn't swiped right on any of the current user's posts, then there's no match
+   if (!mutualSwipe) return;
+
+   // before creating a match, check if a match already exists between these two users to avoid duplicate matches
+   const {data: existingMatch} = await supabase
+      .from('Match')
+      .select('match_id')
+      .or(`and(user_id_a.eq.${swiperId},user_id_b.eq.${postOwnerId}),and(user_id_a.eq.${postOwnerId},user_id_b.eq.${swiperId})`)
+      .single();
+
+   if (existingMatch) return;
+
+   await supabase.from('Match').insert({
+      matched_at: new Date(),
+      user_id_a: swiperId,
+      user_id_b: postOwnerId,
+      match_status: 'ACTIVE'
+   });
+   
 }
