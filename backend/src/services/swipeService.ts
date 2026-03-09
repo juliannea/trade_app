@@ -7,6 +7,8 @@ class AppError extends Error {
 }
 
 export async function swipe(userId: string, postId: string, direction: 'LEFT' | 'RIGHT') {
+   console.log('swipe called with:', userId, postId, direction)
+
    //Check if post exists and get the post owner's user_id
    const {data: post, error: postError} = await supabase
       .from('Post')
@@ -38,7 +40,7 @@ export async function swipe(userId: string, postId: string, direction: 'LEFT' | 
    //base cases passed, we can insert the swipe into the database
    const {error: insertError} = await supabase
       .from('Swipe')
-      .insert({ user_id: userId, post_id: postId, direction });
+      .insert({ user_id: userId, post_id: postId, swipe_direction: direction });
       
    if (insertError) throw new AppError(insertError.message, 500);
 
@@ -55,7 +57,7 @@ export async function swipe(userId: string, postId: string, direction: 'LEFT' | 
 export async function getUserSwipes(userId: string) {
    const {data, error} = await supabase
       .from('Swipe')
-      .select('post_id, direction')
+      .select('post_id, swipe_direction')
       .eq('user_id', userId);
 
    if (error) throw new AppError(error.message, 500);
@@ -63,7 +65,7 @@ export async function getUserSwipes(userId: string) {
 }
 
 
-
+//=============================== needs to fix==============================
 async function checkForMatch(swiperId: string, postOwnerId: string) {
    // get all of the swiper user's posts
    const {data:myPosts} = await supabase
@@ -74,14 +76,17 @@ async function checkForMatch(swiperId: string, postOwnerId: string) {
    // if user has no posts they can't be matched
    if (!myPosts || myPosts.length === 0) return;
 
+   console.log('myPosts:', myPosts);
+
    const {data:mutualSwipe} = await supabase
       .from('Swipe')
       .select('swipe_id')
       .eq('user_id', postOwnerId)
       .in('post_id', myPosts.map(post => post.post_id))  // transform the array of posts into an array of post_ids to check if the post owner has swiped right on any of the swiper user's posts
-      .eq('direction', 'RIGHT')
-      .single();
-
+      .eq('swipe_direction', 'RIGHT')
+      .limit(1) // we only need to find one mutual swipe to confirm a match, so we can limit the query to 1 result
+      
+   console.log('mutualSwipe:', mutualSwipe);   
    // if the post owner hasn't swiped right on any of the current user's posts, then there's no match
    if (!mutualSwipe) return;
 
@@ -92,13 +97,21 @@ async function checkForMatch(swiperId: string, postOwnerId: string) {
       .or(`and(user_id_a.eq.${swiperId},user_id_b.eq.${postOwnerId}),and(user_id_a.eq.${postOwnerId},user_id_b.eq.${swiperId})`)
       .single();
 
+   console.log('existingMatch:', existingMatch);
+
    if (existingMatch) return;
 
-   await supabase.from('Match').insert({
+
+
+  const { error } = await supabase.from('Match').insert({
       matched_at: new Date(),
       user_id_a: swiperId,
       user_id_b: postOwnerId,
       match_status: 'ACTIVE'
    });
+
+   console.log('Match creation error:', error);
+
+   console.log('Match created between', swiperId, 'and', postOwnerId);
    
 }

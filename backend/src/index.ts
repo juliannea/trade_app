@@ -5,6 +5,8 @@ import { supabase } from './supabase'
 import userRoutes from './routes/users';
 import collectionRoutes from './routes/collections';
 import postRoutes from './routes/posts';
+import matchRoutes from './routes/matches';
+import swipeRoutes from './routes/swipes';
 
 dotenv.config();
 
@@ -26,6 +28,12 @@ app.use('/api/collections', collectionRoutes);
 
 //Post routes
 app.use('/api/posts', postRoutes);
+
+//Match routes
+app.use('/api/matches', matchRoutes);
+
+//Swipe routes
+app.use('/api/swipes', swipeRoutes);
 
 
 app.listen(PORT, () => {
