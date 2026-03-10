@@ -37,16 +37,12 @@ export async function swipe(userId: string, postId: string, direction: 'LEFT' | 
    //if the query returns a swipe, that means the user has already swiped on this post, so we throw a 400 error --> cannot swipe on the same post more than once
    if (existingSwipe) throw new AppError('Already swiped on this post', 400);
 
-   const {data: user} = await supabase
-      .from('User')
-      .select('user_name')
-      .eq('user_id', userId)
-      .single();
+   
 
    //base cases passed, we can insert the swipe into the database
    const {error: insertError} = await supabase
       .from('Swipe')
-      .insert({ user_id: userId, post_id: postId, swipe_direction: direction, user_name: user?.user_name });
+      .insert({ user_id: userId, post_id: postId, swipe_direction: direction });
       
    if (insertError) throw new AppError(insertError.message, 500);
 
@@ -63,7 +59,7 @@ export async function swipe(userId: string, postId: string, direction: 'LEFT' | 
 export async function getUserSwipes(userId: string) {
    const {data, error} = await supabase
       .from('Swipe')
-      .select('post_id, swipe_direction')
+      .select('post_id, swipe_direction', )
       .eq('user_id', userId);
 
    if (error) throw new AppError(error.message, 500);
