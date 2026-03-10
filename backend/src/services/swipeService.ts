@@ -93,7 +93,7 @@ async function checkForMatch(swiperId: string, postOwnerId: string) {
       
    console.log('mutualSwipe:', mutualSwipe);   
    // if the post owner hasn't swiped right on any of the current user's posts, then there's no match
-   if (!mutualSwipe) return;
+   if (!mutualSwipe || mutualSwipe.length === 0) return;
 
    // before creating a match, check if a match already exists between these two users to avoid duplicate matches
    const {data: existingMatch} = await supabase
