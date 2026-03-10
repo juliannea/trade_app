@@ -10,7 +10,7 @@ export class AppError extends Error {
 export async function getAllCollections() {
   const {data, error} = await supabase
     .from('Collection')
-    .select('collection_name');
+    .select('collection_id, collection_name');
 
   if (error) throw new AppError(error.message, 500);
   return data;
