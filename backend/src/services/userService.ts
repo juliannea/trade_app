@@ -11,7 +11,7 @@ class AppError extends Error {
 export async function getOwnProfile(userId: string) {
   const { data, error } = await supabase
     .from('User')
-    .select('user_id, user_name, user_first_name, user_last_name, user_email, user_phone, user_profile_image')
+    .select('user_id, user_name, user_first_name, user_last_name, user_email, user_phone, user_profile_image, user_created_at, user_bio')
     .eq('user_id', userId)
     .single();
 
@@ -24,7 +24,7 @@ export async function getOwnProfile(userId: string) {
 export async function getUserById(userId: string) {
   const { data, error } = await supabase
     .from('User')
-    .select('user_id, user_name, user_first_name, user_last_name')
+    .select('user_id, user_name, user_first_name, user_last_name, user_profile_image, user_created_at, user_bio')
     .eq('user_id', userId)
     .single();
 
@@ -39,11 +39,13 @@ export async function updateProfile(userId: string,{
     user_first_name,
     user_last_name,
     user_phone,
+    user_bio
   }: {
     user_name?: string;
     user_first_name?: string;
     user_last_name?: string;
     user_phone?: string;
+    user_bio?: string;
   }) {
 
   const updates: any = {};
@@ -52,12 +54,13 @@ export async function updateProfile(userId: string,{
   if (user_first_name) updates.user_first_name = user_first_name;
   if (user_last_name) updates.user_last_name = user_last_name;
   if (user_phone) updates.user_phone = user_phone;
+  if (user_bio) updates.user_bio = user_bio;
 
   const { data, error } = await supabase
     .from('User')
     .update(updates)
     .eq('user_id', userId)
-    .select('user_id, user_name, user_first_name, user_last_name, user_phone')
+    .select('user_id, user_name, user_first_name, user_last_name, user_phone, user_bio')
     .single();
 
   if (error) throw new AppError(error.message, 500);
