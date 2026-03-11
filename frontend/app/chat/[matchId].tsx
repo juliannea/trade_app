@@ -1,12 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform
-} from 'react-native'
+import { View,Text,FlatList,StyleSheet,KeyboardAvoidingView, Platform} from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { api } from "@/lib/api";
