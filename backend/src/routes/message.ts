@@ -6,5 +6,6 @@ import * as MessageController from '../controllers/messageController';
 const router = Router();
 
 router.get('/:matchId', requireAuth, MessageController.getMessages)
+router.post('/:matchId', requireAuth, MessageController.sendMessage)
 
 export default router
