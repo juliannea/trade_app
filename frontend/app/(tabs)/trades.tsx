@@ -8,7 +8,7 @@ import {
     Platform,
 } from "react-native";
 
-// ── Types ──────────────────────────────────────────────────────────────────
+//types
 type TradeStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "COMPLETED";
 
 interface TradeItem {
@@ -26,7 +26,7 @@ interface Trade {
     theirItem: TradeItem;
 }
 
-// ── Mock Data ──────────────────────────────────────────────────────────────
+//mock data
 const MOCK_ACTIVE: Trade[] = [
     {
         id: "t1",
@@ -68,7 +68,7 @@ const MOCK_HISTORY: Trade[] = [
     },
 ];
 
-// ── Status Badge ───────────────────────────────────────────────────────────
+//status 
 const STATUS_CONFIG: Record<TradeStatus, { label: string; bg: string }> = {
     PENDING: { label: "PENDING", bg: "#00C9A7" },
     ACCEPTED: { label: "ACCEPTED", bg: "#4CAF50" },
