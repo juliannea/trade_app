@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { supabase } from "@/lib/supabase";
-import { Platform, StyleSheet, Text } from "react-native";
+import { Platform, StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
 
 import { HelloWave } from "@/components/hello-wave";
 import ParallaxScrollView from "@/components/parallax-scroll-view";
@@ -19,9 +19,23 @@ type UserProfile = {
     user_last_name: string;
     user_email: string;
     user_phone: string;
+    user_profile_image: string | null;
+    user_created_at: string | null;
+    user_bio: string | null;
+};
+
+//testing api call to backend
+type UserPost = {
+  post_id: number;
+  post_title: string;
+  post_image_url: string;
+  post_caption: string;
+  collection_id: number;
+  Collection: { collection_name: string };
 };
 
 export default function Profile() {
+
     //testing frontend to backend connection by fetching the users data
     const [user, setUser] = useState<UserProfile | null>(null);
 
@@ -41,50 +55,229 @@ export default function Profile() {
         testConnection();
     }, []);
 
-    return (
-        <ParallaxScrollView
-            headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
-            headerImage={
-                <Image
-                    source={require("@/assets/images/partial-react-logo.png")}
-                    style={styles.reactLogo}
-                />
-            }
-        >
-            <ThemedView style={styles.titleContainer}>
-                <ThemedText type="title">Welcome!</ThemedText>
-                <HelloWave />
-            </ThemedView>
+    //test frontend to backend connection for fetching the posts data
+    const [posts, setPosts] = useState<UserPost[]>([]);
 
-            {/*temp sign out button and testing auth connection to backend*/}
-            <ThemedView style={styles.stepContainer}>
-                <Text style={{ color: "white" }}>
-                    Logged in as: {user ? user.user_email : "Loading..."}
-                </Text>
-                <Button
-                    title="Sign Out"
-                    onPress={() => supabase.auth.signOut()}
-                />
-            </ThemedView>
-        </ParallaxScrollView>
-    );
+    useEffect(() => {
+      api.get<UserPost[]>("/api/posts")
+        .then((data) => setPosts(data))
+        .catch((err) => console.error(err));
+    }, []);
+
+    //determine user intials to display in profile picture
+    const initials = user
+    ? `${user.user_first_name?.[0] ?? ''}${user.user_last_name?.[0] ?? ''}`.toUpperCase()
+    : '?';
+
+    //extract month and year from timestamp
+    const joinedDate = user?.user_created_at
+    ? `Trading since ${new Date(user.user_created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+    : null;
+
+    //temporary location
+    const userLocation = 'New York, NY'
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: '#ffffff' }}
+      contentContainerStyle={styles.container}
+    >
+      {/* displays user's full name at top of screen */}
+      <Text style={styles.fullName}>
+      {user?.user_first_name} {user?.user_last_name}
+      </Text>
+
+      {/* profile picture or a placeholder with initials */}
+      <View style={styles.pfpWrapper}>
+        <View style={styles.pfp}>
+        {user?.user_profile_image ? (
+          <Image
+            source={{ uri: user.user_profile_image }}
+            style={{ width: 115, height: 115, borderRadius: 60 }}
+          />
+          ) : (
+          <Text style={styles.pfpText}>{initials}</Text>
+          )}
+        </View>
+      </View>
+
+      {/* display username and bio */}
+      <View style={styles.nameSection}>
+        <Text style={styles.userName}>@{user?.user_name}</Text>
+        {user?.user_bio && (
+        <Text style={styles.bio}>{user.user_bio}</Text>
+        )}
+        {/* display date joined and location as a badge */}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+        {joinedDate && (
+        <View style={styles.joinedBadge}>
+        <Text style={styles.joinedBadgeText}>⏱︎ {joinedDate}</Text>
+        </View>
+        )}
+        <View style={styles.joinedBadge}>
+        <Text style={styles.joinedBadgeText}>𖡡 {userLocation}</Text>
+        </View>
+      </View>
+      </View>
+
+      {/* edit profile and share profile buttons */}
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.actionButton}>
+            <Text style={styles.actionButtonText}>Edit Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton}>
+            <Text style={styles.actionButtonText}>Share Profile</Text>
+        </TouchableOpacity>
+        </View>
+
+      {/* divider */}
+      <View style={styles.divider} />
+
+      {/* grid for displaying a user's posts */}
+      <View style={styles.postsGrid}>
+        {posts.map((post) => (
+        <View key={post.post_id} style={styles.postCard}>
+          <Image
+          source={{ uri: post.post_image_url }}
+          style={styles.postImage}
+          />
+        <Text style={styles.postTitle} numberOfLines={1}>{post.post_title}</Text>
+        </View>
+        ))}
+      </View>
+
+      {/* sign out button*/}
+      <TouchableOpacity
+        style={styles.signOutButton}
+        onPress={() => supabase.auth.signOut()}
+      >
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-    titleContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-    },
-    stepContainer: {
-        gap: 8,
-        marginBottom: 8,
-    },
-    reactLogo: {
-        height: 178,
-        width: 290,
-        bottom: 0,
-        left: 0,
-        position: "absolute",
-    },
+  container: {
+    flexGrow: 1,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
+  },
+  pfpWrapper: {
+    paddingTop: 40,
+    marginBottom: 16,
+  },
+  pfp: {
+    width: 115,
+    height: 115,
+    borderRadius: 60,
+    backgroundColor: '#6b21a8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 5,
+    borderColor: '#f472b6',
+  },
+  pfpText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  nameSection: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  fullName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#6b21a8',
+    marginBottom: 12,
+  },
+  userName: {
+    fontSize: 16,
+    color: '#6b21a8',
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  divider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#f9a8d4',
+    opacity: 0.6,
+    marginBottom: 18,
+  },
+  signOutButton: {
+    borderWidth: 1.5,
+    borderColor: '#6b21a8',
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    marginTop: 18,
+  },
+  signOutText: {
+    color: '#6b21a8',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: 5,
+    marginBottom: 18,
+  },
+  actionButton: {
+    borderWidth: 1.5,
+    borderColor: '#6b21a8',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  actionButtonText: {
+    color: '#6b21a8',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  bio: {
+    fontSize: 14,
+    color: '#a78bca',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  joinedBadge: {
+    backgroundColor: '#f3e8ff',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    marginTop: 4,
+  },
+  joinedBadgeText: {
+    fontSize: 12,
+    color: '#6b21a8',
+    fontWeight: '500',
+  },
+  postsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    width: '100%',
+    marginTop: 8,
+  },
+  postCard: {
+    width: '47%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f3e8ff',
+  },
+  postImage: {
+    width: '100%',
+    height: 160,
+  },
+  postTitle: {
+    fontSize: 12,
+    color: '#6b21a8',
+    fontWeight: '600',
+    padding: 8,
+  },
 });
