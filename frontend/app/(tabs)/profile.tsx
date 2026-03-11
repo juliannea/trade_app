@@ -19,9 +19,23 @@ type UserProfile = {
     user_last_name: string;
     user_email: string;
     user_phone: string;
+    user_profile_image: string | null;
+    user_created_at: string | null;
+    user_bio: string | null;
+};
+
+//testing api call to backend
+type UserPost = {
+  post_id: number;
+  post_title: string;
+  post_image_url: string;
+  post_caption: string;
+  collection_id: number;
+  Collection: { collection_name: string };
 };
 
 export default function Profile() {
+
     //testing frontend to backend connection by fetching the users data
     const [user, setUser] = useState<UserProfile | null>(null);
 
@@ -41,32 +55,70 @@ export default function Profile() {
         testConnection();
     }, []);
 
+    //test frontend to backend connection for fetching the posts data
+    const [posts, setPosts] = useState<UserPost[]>([]);
+
+    useEffect(() => {
+      api.get<UserPost[]>("/api/posts")
+        .then((data) => setPosts(data))
+        .catch((err) => console.error(err));
+    }, []);
+
     //determine user intials to display in profile picture
     const initials = user
     ? `${user.user_first_name?.[0] ?? ''}${user.user_last_name?.[0] ?? ''}`.toUpperCase()
     : '?';
+
+    //extract month and year from timestamp
+    const joinedDate = user?.user_created_at
+    ? `Trading since ${new Date(user.user_created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+    : null;
+
+    //temporary location
+    const userLocation = 'New York, NY'
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: '#ffffff' }}
       contentContainerStyle={styles.container}
     >
-      {/* profile picture placeholder with initials */}
+      {/* displays user's full name at top of screen */}
+      <Text style={styles.fullName}>
+      {user?.user_first_name} {user?.user_last_name}
+      </Text>
+
+      {/* profile picture or a placeholder with initials */}
       <View style={styles.pfpWrapper}>
         <View style={styles.pfp}>
-          <Text style={styles.pfpText}>
-            {initials}
-          </Text>
+        {user?.user_profile_image ? (
+          <Image
+            source={{ uri: user.user_profile_image }}
+            style={{ width: 115, height: 115, borderRadius: 60 }}
+          />
+          ) : (
+          <Text style={styles.pfpText}>{initials}</Text>
+          )}
         </View>
       </View>
 
-      {/* display name and username */}
+      {/* display username and bio */}
       <View style={styles.nameSection}>
-        <Text style={styles.fullName}>
-        {user?.user_first_name} {user?.user_last_name}
-        </Text>
         <Text style={styles.userName}>@{user?.user_name}</Text>
+        {user?.user_bio && (
+        <Text style={styles.bio}>{user.user_bio}</Text>
+        )}
+        {/* display date joined and location as a badge */}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+        {joinedDate && (
+        <View style={styles.joinedBadge}>
+        <Text style={styles.joinedBadgeText}>⏱︎ {joinedDate}</Text>
         </View>
+        )}
+        <View style={styles.joinedBadge}>
+        <Text style={styles.joinedBadgeText}>𖡡 {userLocation}</Text>
+        </View>
+      </View>
+      </View>
 
       {/* edit profile and share profile buttons */}
       <View style={styles.buttonRow}>
@@ -80,6 +132,19 @@ export default function Profile() {
 
       {/* divider */}
       <View style={styles.divider} />
+
+      {/* grid for displaying a user's posts */}
+      <View style={styles.postsGrid}>
+        {posts.map((post) => (
+        <View key={post.post_id} style={styles.postCard}>
+          <Image
+          source={{ uri: post.post_image_url }}
+          style={styles.postImage}
+          />
+        <Text style={styles.postTitle} numberOfLines={1}>{post.post_title}</Text>
+        </View>
+        ))}
+      </View>
 
       {/* sign out button*/}
       <TouchableOpacity
@@ -97,21 +162,22 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#ffffff',
     alignItems: 'center',
-    paddingTop: 80,
+    paddingTop: 20,
     paddingBottom: 40,
     paddingHorizontal: 24,
   },
   pfpWrapper: {
+    paddingTop: 40,
     marginBottom: 16,
   },
   pfp: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 115,
+    height: 115,
+    borderRadius: 60,
     backgroundColor: '#6b21a8',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 5,
     borderColor: '#f472b6',
   },
   pfpText: {
@@ -124,56 +190,23 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   fullName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#6b21a8',
-    marginBottom: 4,
+    marginBottom: 12,
   },
   userName: {
-    fontSize: 15,
-    color: '#a78bca',
-  },
-  loadingText: {
     fontSize: 16,
-    color: '#a78bca',
+    color: '#6b21a8',
+    fontWeight: '600',
+    marginBottom: 6,
   },
   divider: {
     width: '100%',
     height: 1,
     backgroundColor: '#f9a8d4',
     opacity: 0.6,
-    marginBottom: 24,
-  },
-  infoSection: {
-    width: '100%',
-    gap: 12,
-    marginBottom: 40,
-  },
-  infoRow: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#f472b6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  infoLabel: {
-    fontSize: 13,
-    color: '#a78bca',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  infoValue: {
-    fontSize: 14,
-    color: '#6b21a8',
-    fontWeight: '500',
+    marginBottom: 18,
   },
   signOutButton: {
     borderWidth: 1.5,
@@ -181,6 +214,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     paddingVertical: 12,
     paddingHorizontal: 40,
+    marginTop: 18,
   },
   signOutText: {
     color: '#6b21a8',
@@ -204,5 +238,46 @@ const styles = StyleSheet.create({
     color: '#6b21a8',
     fontWeight: '600',
     fontSize: 13,
+  },
+  bio: {
+    fontSize: 14,
+    color: '#a78bca',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  joinedBadge: {
+    backgroundColor: '#f3e8ff',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    marginTop: 4,
+  },
+  joinedBadgeText: {
+    fontSize: 12,
+    color: '#6b21a8',
+    fontWeight: '500',
+  },
+  postsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    width: '100%',
+    marginTop: 8,
+  },
+  postCard: {
+    width: '47%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f3e8ff',
+  },
+  postImage: {
+    width: '100%',
+    height: 160,
+  },
+  postTitle: {
+    fontSize: 12,
+    color: '#6b21a8',
+    fontWeight: '600',
+    padding: 8,
   },
 });
