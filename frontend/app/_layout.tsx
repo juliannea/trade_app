@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase';
 import Auth from '@/components/Auth';
 import { View } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -37,6 +39,7 @@ export default function RootLayout() {
   }
 
   return (
+  <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -44,5 +47,7 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
-  );
+ 
+  </GestureHandlerRootView>
+   );
 }
