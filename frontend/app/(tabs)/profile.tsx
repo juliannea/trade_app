@@ -1,17 +1,16 @@
 import { Image } from "expo-image";
 import { supabase } from "@/lib/supabase";
-import { Platform, StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
-
-import { HelloWave } from "@/components/hello-wave";
-import ParallaxScrollView from "@/components/parallax-scroll-view";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { Link } from "expo-router";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions } from "react-native";
 import { useEffect, useState } from "react";
-import { Button } from "react-native";
 import { api } from "@/lib/api";
+import EditProfile from "@/components/EditProfile";
 
-//testing api call to backend
+//determine screen dimensions for post card placement
+const screenWidth = Dimensions.get('window').width;
+const numColumns = screenWidth > 600 ? 3 : 2;
+const cardWidth = (screenWidth - 48 - (numColumns - 1) * 8) / numColumns;
+
+//testing user profile api call to backend
 type UserProfile = {
     user_id: string;
     user_name: string;
@@ -24,7 +23,7 @@ type UserProfile = {
     user_bio: string | null;
 };
 
-//testing api call to backend
+//testing user post api call to backend
 type UserPost = {
   post_id: number;
   post_title: string;
@@ -77,17 +76,20 @@ export default function Profile() {
     //temporary location
     const userLocation = 'New York, NY'
 
+    // sets edit profile modal to not visible
+    const [editModalVisible, setEditModalVisible] = useState(false);
+
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#ffffff' }}
+      style={{ flex: 1 }}
       contentContainerStyle={styles.container}
     >
-      {/* displays user's full name at top of screen */}
+      {/* display user's full name at top of screen */}
       <Text style={styles.fullName}>
       {user?.user_first_name} {user?.user_last_name}
       </Text>
 
-      {/* profile picture or a placeholder with initials */}
+      {/* display profile picture or a placeholder with initials */}
       <View style={styles.pfpWrapper}>
         <View style={styles.pfp}>
         {user?.user_profile_image ? (
@@ -101,29 +103,33 @@ export default function Profile() {
         </View>
       </View>
 
-      {/* display username and bio */}
       <View style={styles.nameSection}>
+        
+        {/* display username and bio */}
         <Text style={styles.userName}>@{user?.user_name}</Text>
         {user?.user_bio && (
         <Text style={styles.bio}>{user.user_bio}</Text>
         )}
+
         {/* display date joined and location as a badge */}
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+        <View style={styles.badgeRow}>
         {joinedDate && (
-        <View style={styles.joinedBadge}>
-        <Text style={styles.joinedBadgeText}>⏱︎ {joinedDate}</Text>
+          <View style={styles.joinedBadge}>
+            <Text style={styles.joinedBadgeText}>⏱︎ {joinedDate}</Text>
+          </View>
+          )}
+          <View style={styles.joinedBadge}>
+            <Text style={styles.joinedBadgeText}>𖡡 {userLocation}</Text>
+          </View>
         </View>
-        )}
-        <View style={styles.joinedBadge}>
-        <Text style={styles.joinedBadgeText}>𖡡 {userLocation}</Text>
-        </View>
-      </View>
+
       </View>
 
-      {/* edit profile and share profile buttons */}
+      {/* display edit profile and share profile buttons */}
       <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionButtonText}>Edit Profile</Text>
+        {/* edit profile modal is visible */}
+        <TouchableOpacity style={styles.actionButton} onPress={() => setEditModalVisible(true)}>
+          <Text style={styles.actionButtonText}>Edit Profile</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton}>
             <Text style={styles.actionButtonText}>Share Profile</Text>
@@ -153,6 +159,20 @@ export default function Profile() {
       >
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
+
+      {/* edit profile modal */}
+      <EditProfile
+        visible={editModalVisible}
+        onClose={() => setEditModalVisible(false)}
+        onSave={(updated) => setUser((prev) => prev ? { ...prev, ...updated } : prev)}
+        currentUser={{
+          user_name: user?.user_name ?? '',
+          user_first_name: user?.user_first_name ?? '',
+          user_last_name: user?.user_last_name ?? '',
+          user_phone: user?.user_phone ?? null,
+          user_bio: user?.user_bio ?? null,
+        }}
+      />
     </ScrollView>
   );
 }
@@ -168,7 +188,7 @@ const styles = StyleSheet.create({
   },
   pfpWrapper: {
     paddingTop: 40,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   pfp: {
     width: 115,
@@ -187,7 +207,6 @@ const styles = StyleSheet.create({
   },
   nameSection: {
     alignItems: 'center',
-    marginBottom: 12,
   },
   fullName: {
     fontSize: 22,
@@ -199,7 +218,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b21a8',
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   divider: {
     width: '100%',
@@ -250,12 +269,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 5,
     paddingHorizontal: 14,
-    marginTop: 4,
+    marginBottom: 8,
   },
   joinedBadgeText: {
     fontSize: 12,
     color: '#6b21a8',
     fontWeight: '500',
+  },
+  badgeRow: {
+    flexDirection: 'row', 
+    gap: 8, 
+    marginTop: 4,
   },
   postsGrid: {
     flexDirection: 'row',
@@ -265,7 +289,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   postCard: {
-    width: '47%',
+    width: cardWidth,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#f3e8ff',
