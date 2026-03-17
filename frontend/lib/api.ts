@@ -25,7 +25,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   return response.json();
 }
 
+// export const api = {
+//   get: <T>(path: string) => apiRequest<T>(path),
+// };
 
 export const api = {
   get: <T>(path: string) => apiRequest<T>(path),
+  patch: <T>(path: string, body: object) => apiRequest<T>(path, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  }),
 };
