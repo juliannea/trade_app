@@ -37,10 +37,14 @@ export async function getOwnPosts(req: AuthRequest, res: Response) {
 //GET returns all created posts of a specific collection, requires authentication 
 export async function getPostsByCollection(req: AuthRequest, res: Response) {
   try {
-    const collectionId = Number(req.params.collectionId);
-    if (isNaN(collectionId)) return res.status(400).json({ error: 'Invalid collection_id' });
+    const raw = req.query.collectionIds as string | undefined;
 
-    const posts = await PostService.getPostsByCollection(collectionId, req.userId!);
+    const collectionIds = raw 
+      ? raw.split(',').map(Number).filter(n => !isNaN(n))
+      : null; 
+
+
+    const posts = await PostService.getPostsByCollection(collectionIds, req.userId!);
     res.json(posts);
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message });

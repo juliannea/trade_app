@@ -68,7 +68,7 @@ export async function getOwnPosts(userId: string) {
 }
 
 //GET returns all created posts of a specific collection, requires authentication 
-export async function getPostsByCollection(collectionId: number, userId: string) {
+export async function getPostsByCollection(collectionIds: number[] | null, userId: string) {
   //find every post the user had already swiped on 
   const {data: swipedPosts } = await supabase
     .from('Swipe')
@@ -76,6 +76,17 @@ export async function getPostsByCollection(collectionId: number, userId: string)
     .eq('user_id', userId);
   
   const swipedPostIds = swipedPosts?.map(s => s.post_id) ?? [];
+
+  //find every post part of a pending or completed trade 
+  const{ data: trades } = await supabase
+    .from('Trade')
+    .select('post_id_a, post_id_b')
+    .in('trade_status', ['PENDING', 'COMPLETE']);
+  
+  const tradedPostIds = trades?.flatMap(t => [t.post_id_a, t.post_id_b]) ?? [];
+
+  //add all the posts to ignore in one array
+  const ignoreIds = [... new Set([...swipedPostIds, tradedPostIds])];
 
   let query = supabase
     .from('Post')
@@ -89,19 +100,22 @@ export async function getPostsByCollection(collectionId: number, userId: string)
       )`
     )
     //user join to get the user_name of the post creator and collection join to get the collection name for each post in the feed
-    .eq('collection_id', collectionId)
     .neq('user_id', userId); //exclude the users own posts from the collection feed
-  
-  //exlude posts the user had already swiped on from the collection feed
-  if (swipedPostIds.length > 0) {
-    query = query.not('post_id', 'in', `(${swipedPostIds.join(',')})`);
+
+  //collections filter 
+  if (collectionIds && collectionIds.length > 0){
+    query = query.in('collection_id', collectionIds);
+  }
+
+
+  if (ignoreIds.length > 0) {
+    query = query.not('post_id', 'in', `(${ignoreIds.join(',')})`);
   }
 
   const {data, error} = await query;
 
   if (error) throw new AppError(error.message, 500);
-  if (!data || data.length === 0) throw new AppError('No posts found for this collection', 404);
-  return data;
+  return data ?? [];
 }
 
 //DELETE a post by the post_id, requires authentication   

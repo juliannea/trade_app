@@ -12,8 +12,8 @@ router.post('/', requireAuth, upload.single('image'), PostController.insertPost)
 //GET returns all created posts of the logged in user
 router.get('/', requireAuth, PostController.getOwnPosts);
 
-//GET returns all created posts of a specific collection, requires authentication 
-router.get('/collection/:collectionId', requireAuth, PostController.getPostsByCollection);
+//GET returns all created posts of specific collections or in general based on filter input
+router.get('/feed', requireAuth, PostController.getPostsByCollection);
 
 //DELETE a post by the post_id, requires authentication  
 router.delete('/:postId', requireAuth, PostController.deletePost);
