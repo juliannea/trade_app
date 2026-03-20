@@ -181,7 +181,15 @@ export async function getLikedPostsFromMatch(userId: string, matchId: number) {
   const likedPostIds = swipes?.map(s => s.post_id) ?? [];
   if (likedPostIds.length === 0) return [];
 
-  const { data, error } = await supabase
+  //find every post part of a pending or completed trade 
+  const{ data: trades } = await supabase
+    .from('Trade')
+    .select('post_id_a, post_id_b')
+    .in('trade_status', ['PENDING', 'COMPLETE']);
+  
+  const tradedPostIds = trades?.flatMap(t => [t.post_id_a, t.post_id_b]) ?? [];
+
+  let query = supabase
     .from('Post')
     .select(
       `post_id, post_title, post_image_url, post_caption, user_id,
@@ -193,7 +201,14 @@ export async function getLikedPostsFromMatch(userId: string, matchId: number) {
       )`
     )
     .eq('user_id', otherUserId)
-    .in('post_id', likedPostIds);
+    .in('post_id', likedPostIds)
+    
+  if (tradedPostIds.length > 0) {
+    query = query.not('post_id', 'in', `(${tradedPostIds.join(',')})`);
+  }
+
+  const {data, error} = await query;
+
 
   if (error) throw new AppError(error.message, 500);
   return data ?? [];
