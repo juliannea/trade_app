@@ -8,4 +8,8 @@ router.patch('/:tradeId', requireAuth, TradeController.updateTradeStatus);
 
 router.get('/history', requireAuth, TradeController.getPastTrades);
 
+router.get('/pending', requireAuth, TradeController.getPendingTrades);
+
+router.post('/', requireAuth, TradeController.createTrade);
+
 export default router;
