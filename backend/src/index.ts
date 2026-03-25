@@ -9,6 +9,8 @@ import matchRoutes from './routes/matches';
 import swipeRoutes from './routes/swipes';
 import resetRouter from './routes/resetRouter';
 import messageRoutes from './routes/message'
+import tradeRoutes from './routes/trades';
+
 
 dotenv.config();
 
@@ -39,6 +41,9 @@ app.use('/api/swipes', swipeRoutes);
 
 //Message routes
 app.use('/api/message', messageRoutes)
+
+//Trade routes
+app.use('/api/trades', tradeRoutes);
 
 
 //used to reset the database for testing and demo puproses, should be removed later
