@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -6,75 +6,63 @@ import {
     ScrollView,
     TouchableOpacity,
     Platform,
+    ActivityIndicator,
+    Alert,
 } from "react-native";
+import { tradeService, TradeResponse } from "../../services/tradeService";
+import { supabase } from "../../lib/supabase";
 
 //types
-type TradeStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "COMPLETED";
-
-interface TradeItem {
-    id: string;
-    name: string;
-    series: string;
-    image?: string;
-}
+type TradeStatus = "PENDING" | "COMPLETE" | "CANCELLED";
 
 interface Trade {
-    id: string;
+    id: number;
     counterparty: string;
     status: TradeStatus;
-    myItem: TradeItem;
-    theirItem: TradeItem;
+    myItem: {
+        id: number;
+        name: string;
+        image?: string;
+    };
+    theirItem: {
+        id: number;
+        name: string;
+        image?: string;
+    };
 }
 
-//mock data
-const MOCK_ACTIVE: Trade[] = [
-    {
-        id: "t1",
-        counterparty: "@collector_1",
-        status: "PENDING",
-        myItem: { id: "i1", name: "Labubu Forest", series: "Forest Concert" },
-        theirItem: { id: "i2", name: "Dimoo Space", series: "Space Travel" },
-    },
-    {
-        id: "t2",
-        counterparty: "@collector_2",
-        status: "PENDING",
-        myItem: { id: "i3", name: "Molly Bubble", series: "Classic" },
-        theirItem: { id: "i4", name: "Skullpanda", series: "Dark Side" },
-    },
-    {
-        id: "t3",
-        counterparty: "@collector_3",
-        status: "PENDING",
-        myItem: { id: "i5", name: "Pucky Elf", series: "Flower World" },
-        theirItem: { id: "i6", name: "Crybaby", series: "Secret Garden" },
-    },
-];
-
-const MOCK_HISTORY: Trade[] = [
-    {
-        id: "h1",
-        counterparty: "@collector_4",
-        status: "COMPLETED",
-        myItem: { id: "i7", name: "Hirono", series: "The Chaos" },
-        theirItem: { id: "i8", name: "Zsiga", series: "Zimomo" },
-    },
-    {
-        id: "h2",
-        counterparty: "@collector_5",
-        status: "DECLINED",
-        myItem: { id: "i9", name: "Labubu Classic", series: "Original" },
-        theirItem: { id: "i10", name: "Dimoo Baby", series: "Baby" },
-    },
-];
-
-//status 
+//status
 const STATUS_CONFIG: Record<TradeStatus, { label: string; bg: string }> = {
     PENDING: { label: "PENDING", bg: "#00C9A7" },
-    ACCEPTED: { label: "ACCEPTED", bg: "#4CAF50" },
-    DECLINED: { label: "DECLINED", bg: "#FF5252" },
-    COMPLETED: { label: "COMPLETED", bg: "#9E9E9E" },
+    COMPLETE: { label: "COMPLETED", bg: "#9E9E9E" },
+    CANCELLED: { label: "CANCELLED", bg: "#FF5252" },
 };
+
+//helper to transform backend response to UI format
+function transformTradeData(trades: TradeResponse[], currentUserId: string): Trade[] {
+    return trades.map((trade) => {
+        const isUserA = trade.user_a_id === currentUserId;
+        const myPost = isUserA ? trade.post_a : trade.post_b;
+        const theirPost = isUserA ? trade.post_b : trade.post_a;
+        const counterpartyUsername = isUserA ? trade.post_b.username : trade.post_a.username;
+
+        return {
+            id: trade.trade_id,
+            counterparty: `@${counterpartyUsername}`,
+            status: trade.trade_status,
+            myItem: {
+                id: myPost.post_id,
+                name: myPost.title,
+                image: myPost.image || undefined,
+            },
+            theirItem: {
+                id: theirPost.post_id,
+                name: theirPost.title,
+                image: theirPost.image || undefined,
+            },
+        };
+    });
+}
 
 function StatusBadge({ status }: { status: TradeStatus }) {
     const { label, bg } = STATUS_CONFIG[status];
@@ -94,8 +82,8 @@ function TradeCard({
 }: {
     trade: Trade;
     isActive: boolean;
-    onConfirm: (id: string) => void;
-    onCancel: (id: string) => void;
+    onConfirm: (id: number) => void;
+    onCancel: (id: number) => void;
 }) {
     return (
         <View style={styles.card}>
@@ -155,16 +143,82 @@ function TradeCard({
 //screen
 export default function TradesScreen() {
     const [tab, setTab] = useState<"active" | "history">("active");
-    const [active, setActive] = useState<Trade[]>(MOCK_ACTIVE);
-    const [history] = useState<Trade[]>(MOCK_HISTORY);
+    const [active, setActive] = useState<Trade[]>([]);
+    const [history, setHistory] = useState<Trade[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [currentUserId, setCurrentUserId] = useState<string>("");
 
-    const handleConfirm = (id: string) =>
-        setActive((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, status: "ACCEPTED" } : t)),
-        );
+    //fetch curr user ID
+    useEffect(() => {
+        const fetchUserId = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setCurrentUserId(user.id);
+            }
+        };
+        fetchUserId();
+    }, []);
 
-    const handleCancel = (id: string) =>
-        setActive((prev) => prev.filter((t) => t.id !== id));
+    //fetch pending trades
+    const fetchPendingTrades = useCallback(async () => {
+        try {
+            const data = await tradeService.getPendingTrades();
+            const transformed = transformTradeData(data, currentUserId);
+            setActive(transformed);
+        } catch (error) {
+            console.error("Error fetching pending trades:", error);
+            Alert.alert("Error", "Failed to load pending trades");
+        }
+    }, [currentUserId]);
+
+    //fetch trade history
+    const fetchTradeHistory = useCallback(async () => {
+        try {
+            const data = await tradeService.getTradeHistory();
+            const transformed = transformTradeData(data, currentUserId);
+            setHistory(transformed);
+        } catch (error) {
+            console.error("Error fetching trade history:", error);
+            Alert.alert("Error", "Failed to load trade history");
+        }
+    }, [currentUserId]);
+
+    //load trades on mount and when user ID is available
+    useEffect(() => {
+        if (!currentUserId) return;
+
+        const loadTrades = async () => {
+            setLoading(true);
+            await Promise.all([fetchPendingTrades(), fetchTradeHistory()]);
+            setLoading(false);
+        };
+
+        loadTrades();
+    }, [currentUserId, fetchPendingTrades, fetchTradeHistory]);
+
+    const handleConfirm = async (id: number) => {
+        try {
+            await tradeService.updateTradeStatus(id, { trade_status: "COMPLETE" });
+            // Refresh both lists
+            await Promise.all([fetchPendingTrades(), fetchTradeHistory()]);
+            Alert.alert("Success", "Trade completed!");
+        } catch (error) {
+            console.error("Error confirming trade:", error);
+            Alert.alert("Error", "Failed to confirm trade");
+        }
+    };
+
+    const handleCancel = async (id: number) => {
+        try {
+            await tradeService.updateTradeStatus(id, { trade_status: "CANCELLED" });
+            // Refresh both lists
+            await Promise.all([fetchPendingTrades(), fetchTradeHistory()]);
+            Alert.alert("Success", "Trade cancelled");
+        } catch (error) {
+            console.error("Error cancelling trade:", error);
+            Alert.alert("Error", "Failed to cancel trade");
+        }
+    };
 
     const trades = tab === "active" ? active : history;
 
@@ -224,26 +278,33 @@ export default function TradesScreen() {
             </View>
 
             {/* List */}
-            <ScrollView
-                contentContainerStyle={styles.list}
-                showsVerticalScrollIndicator={false}
-            >
-                {trades.length === 0 ? (
-                    <View style={styles.empty}>
-                        <Text style={styles.emptyText}>No trades here yet</Text>
-                    </View>
-                ) : (
-                    trades.map((trade) => (
-                        <TradeCard
-                            key={trade.id}
-                            trade={trade}
-                            isActive={tab === "active"}
-                            onConfirm={handleConfirm}
-                            onCancel={handleCancel}
-                        />
-                    ))
-                )}
-            </ScrollView>
+            {loading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#E8445A" />
+                    <Text style={styles.loadingText}>Loading trades...</Text>
+                </View>
+            ) : (
+                <ScrollView
+                    contentContainerStyle={styles.list}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {trades.length === 0 ? (
+                        <View style={styles.empty}>
+                            <Text style={styles.emptyText}>No trades here yet</Text>
+                        </View>
+                    ) : (
+                        trades.map((trade) => (
+                            <TradeCard
+                                key={trade.id}
+                                trade={trade}
+                                isActive={tab === "active"}
+                                onConfirm={handleConfirm}
+                                onCancel={handleCancel}
+                            />
+                        ))
+                    )}
+                </ScrollView>
+            )}
         </View>
     );
 }
@@ -461,6 +522,19 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     emptyText: {
+        fontSize: 16,
+        color: "#ABABAB",
+    },
+
+    //loading
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingTop: 100,
+    },
+    loadingText: {
+        marginTop: 12,
         fontSize: 16,
         color: "#ABABAB",
     },
