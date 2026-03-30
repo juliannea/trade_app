@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
     Modal,
     ScrollView,
     Pressable,
+    ActivityIndicator,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -20,6 +21,7 @@ import Animated, {
     interpolate,
     Extrapolation,
 } from "react-native-reanimated";
+import { api } from "@/lib/api";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 40;
@@ -34,59 +36,57 @@ interface BlindBoxItem {
     image: string;
     rarity?: string;
     collection: string; //brand
+    collectionId: number; //collection ID from backend
 }
 
 interface Collection {
     id: string;
     name: string;
     image: string;
+    collection_id?: number; //backend ID
+    collection_name?: string; //backend name
 }
 
-//mock data
-const ALL_COLLECTIONS: Collection[] = [
-    {
-        id: "labubu",
-        name: "Labubu",
-        image: "https://cdn-images.farfetch-contents.com/31/78/63/51/31786351_61459894_600.jpg",
-    },
-    {
-        id: "skullpanda",
-        name: "Skullpanda",
-        image: "https://cdn-images.farfetch-contents.com/31/78/63/51/31786351_61459894_600.jpg",
-    },
-    {
-        id: "smiski",
-        name: "Smiski",
-        image: "https://cdn-images.farfetch-contents.com/31/78/63/51/31786351_61459894_600.jpg",
-    },
-    {
-        id: "hirono",
-        name: "Hirono",
-        image: "https://cdn-images.farfetch-contents.com/31/78/63/51/31786351_61459894_600.jpg",
-    },
-];
+interface BackendPost {
+    post_id: number;
+    post_title: string;
+    post_image_url: string;
+    post_caption: string;
+    collection_id: number;
+    user_id?: string;
+    Collection: { collection_name: string } | null;
+    User?: { user_name: string };
+}
 
-const MOCK_ITEMS: BlindBoxItem[] = [
-    {
-        id: "1",
-        name: "Labubu – The Monsters",
-        series: "Forest Concert Series",
-        description:
-            "Looking for a new home! Part of the limited Forest Concert series.",
-        image: "https://cdn-images.farfetch-contents.com/31/78/63/51/31786351_61459894_600.jpg",
-        rarity: "Limited",
-        collection: "labubu",
-    },
-    {
-        id: "4",
-        name: "Smiski – Bath",
-        series: "Bath Series",
-        description: "Glow in the dark bath Smiski!",
-        image: "https://mindzai.com/cdn/shop/files/652eb54139e4ab4dc3c1b6b7_1736912239652_df5ea55c-94fa-464c-be70-36687414160f_5000x.jpg?v=1751490521",
-        rarity: "Common",
-        collection: "smiski",
-    },
-];
+interface BackendCollection {
+    collection_id: number;
+    collection_name: string;
+    collection_image_url: string;
+}
+
+//helper to transform backend post to BlindBoxItem
+function transformPost(post: BackendPost): BlindBoxItem {
+    return {
+        id: post.post_id.toString(),
+        name: post.post_title,
+        series: post.Collection?.collection_name || "Unknown Series",
+        description: post.post_caption,
+        image: post.post_image_url,
+        collection: post.Collection?.collection_name || "Unknown",
+        collectionId: post.collection_id,
+    };
+}
+
+//helper to transform backend collection to Collection
+function transformCollection(col: BackendCollection): Collection {
+    return {
+        id: col.collection_id.toString(),
+        name: col.collection_name,
+        image: col.collection_image_url,
+        collection_id: col.collection_id,
+        collection_name: col.collection_name,
+    };
+}
 
 //swipe card
 interface SwipeCardProps {
@@ -195,6 +195,7 @@ interface CollectionsModalProps {
     selected: string[];
     onClose: () => void;
     onApply: (selected: string[]) => void;
+    collections: Collection[];
 }
 
 function CollectionsModal({
@@ -202,6 +203,7 @@ function CollectionsModal({
     selected,
     onClose,
     onApply,
+    collections,
 }: CollectionsModalProps) {
     const [localSelected, setLocalSelected] = useState<string[]>(selected);
 
@@ -237,7 +239,7 @@ function CollectionsModal({
                     contentContainerStyle={styles.collectionGrid}
                     showsVerticalScrollIndicator={false}
                 >
-                    {ALL_COLLECTIONS.map((col) => {
+                    {collections.map((col) => {
                         const isSelected = localSelected.includes(col.id);
                         return (
                             <TouchableOpacity
@@ -292,6 +294,7 @@ interface FilterSheetProps {
     onClose: () => void;
     onApply: (selected: string[]) => void;
     onSeeAll: () => void;
+    collections: Collection[];
 }
 
 function FilterSheet({
@@ -300,6 +303,7 @@ function FilterSheet({
     onClose,
     onApply,
     onSeeAll,
+    collections,
 }: FilterSheetProps) {
     const [localSelected, setLocalSelected] = useState<string[]>(selected);
 
@@ -310,7 +314,7 @@ function FilterSheet({
     };
 
     //show only first 3 collections as quick-select pills
-    const quickCollections = ALL_COLLECTIONS.slice(0, 3);
+    const quickCollections = collections.slice(0, 3);
 
     return (
         <Modal visible={visible} transparent animationType="slide">
@@ -377,32 +381,94 @@ function FilterSheet({
 
 //MAIN
 export default function SwipeFeedScreen() {
-    const [allItems] = useState<BlindBoxItem[]>(MOCK_ITEMS);
+    const [allCollections, setAllCollections] = useState<Collection[]>([]);
+    const [deck, setDeck] = useState<BlindBoxItem[]>([]);
     const [activeFilters, setActiveFilters] = useState<string[]>([]);
     const [filterVisible, setFilterVisible] = useState(false);
     const [collectionsVisible, setCollectionsVisible] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    //apply filters. if none selected show all, otherwise filter by collection
-    const filteredItems =
-        activeFilters.length === 0
-            ? allItems
-            : allItems.filter((item) =>
-                  activeFilters.includes(item.collection),
-              );
+    const fetchCollections = useCallback(async () => {
+        try {
+            const data = await api.get<BackendCollection[]>("/api/collections");
+            const transformed = data.map(transformCollection);
+            setAllCollections(transformed);
+        } catch (err) {
+            console.error("Failed to fetch collections:", err);
+            setError("Failed to load collections");
+        }
+    }, []);
 
-    const [deck, setDeck] = useState<BlindBoxItem[]>(filteredItems);
+    const fetchPosts = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            //build query string with collection IDs if filters are active
+            const query =
+                activeFilters.length > 0
+                    ? `?collectionIds=${activeFilters.join(",")}`
+                    : "";
+
+            const data = await api.get<BackendPost[]>(`/api/posts/feed${query}`);
+            const transformed = data.map(transformPost);
+            setDeck(transformed);
+        } catch (err) {
+            console.error("Failed to fetch posts:", err);
+            setError("Failed to load posts");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [activeFilters]);
 
     const applyFilters = (selected: string[]) => {
         setActiveFilters(selected);
-        const newDeck =
-            selected.length === 0
-                ? allItems
-                : allItems.filter((item) => selected.includes(item.collection));
-        setDeck(newDeck);
     };
 
-    const handleSwipeLeft = () => setDeck((prev) => prev.slice(1));
-    const handleSwipeRight = () => setDeck((prev) => prev.slice(1));
+    const handleSwipeLeft = async () => {
+        if (deck.length === 0) return;
+
+        const currentPost = deck[0];
+        setDeck((prev) => prev.slice(1));
+
+        //send swipe to backend
+        try {
+            await api.post("/api/swipes", {
+                post_id: currentPost.id,
+                direction: "LEFT",
+            });
+        } catch (err) {
+            console.error("Failed to record swipe:", err);
+        }
+    };
+
+    const handleSwipeRight = async () => {
+        if (deck.length === 0) return;
+
+        const currentPost = deck[0];
+        setDeck((prev) => prev.slice(1));
+
+        //send swipe to backend
+        try {
+            await api.post("/api/swipes", {
+                post_id: currentPost.id,
+                direction: "RIGHT",
+            });
+        } catch (err) {
+            console.error("Failed to record swipe:", err);
+        }
+    };
+
+    //fetch collections on mount
+    useEffect(() => {
+        fetchCollections();
+    }, [fetchCollections]);
+
+    //fetch posts whenever filters change
+    useEffect(() => {
+        fetchPosts();
+    }, [fetchPosts]);
 
     return (
         <View style={styles.container}>
@@ -435,8 +501,8 @@ export default function SwipeFeedScreen() {
                         }}
                     >
                         {activeFilters.map((id) => {
-                            const col = ALL_COLLECTIONS.find(
-                                (c) => c.id === id,
+                            const col = allCollections.find(
+                                (c: Collection) => c.id === id,
                             );
                             return (
                                 <View key={id} style={styles.activeFilterPill}>
@@ -465,7 +531,20 @@ export default function SwipeFeedScreen() {
 
             {/* Card Stack */}
             <View style={styles.cardStack}>
-                {deck.length === 0 ? (
+                {isLoading ? (
+                    <ActivityIndicator size="large" color="#E8445A" />
+                ) : error ? (
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyText}>Error</Text>
+                        <Text style={styles.emptySubText}>{error}</Text>
+                        <TouchableOpacity
+                            onPress={fetchPosts}
+                            style={styles.retryBtn}
+                        >
+                            <Text style={styles.retryBtnText}>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : deck.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyText}>No more items!</Text>
                         <Text style={styles.emptySubText}>
@@ -534,6 +613,7 @@ export default function SwipeFeedScreen() {
                     setFilterVisible(false);
                     setCollectionsVisible(true);
                 }}
+                collections={allCollections}
             />
 
             {/* Select Collections Full Modal */}
@@ -542,6 +622,7 @@ export default function SwipeFeedScreen() {
                 selected={activeFilters}
                 onClose={() => setCollectionsVisible(false)}
                 onApply={applyFilters}
+                collections={allCollections}
             />
         </View>
     );
@@ -939,5 +1020,19 @@ const styles = StyleSheet.create({
         backgroundColor: "#F5F5F7",
         borderTopWidth: 1,
         borderTopColor: "#EBEBEB",
+    },
+
+    //retry button
+    retryBtn: {
+        marginTop: 16,
+        backgroundColor: "#E8445A",
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 20,
+    },
+    retryBtnText: {
+        color: "#fff",
+        fontSize: 14,
+        fontWeight: "600",
     },
 });
