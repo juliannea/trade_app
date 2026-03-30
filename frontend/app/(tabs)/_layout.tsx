@@ -3,6 +3,7 @@ import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import CreatePostButton from '@/components/CreatePostButton';
 
 export default function TabLayout() {
   return (
@@ -50,6 +51,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+      name="create"
+      options={{
+        title: '',
+        tabBarIcon: () => null,
+        tabBarLabel: () => null,
+        tabBarButton: () => <CreatePostButton />,
+      }}
+    />
       <Tabs.Screen
         name="trades"
         options={{

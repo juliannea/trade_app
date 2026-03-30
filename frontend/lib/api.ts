@@ -8,10 +8,12 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   if (!session) throw new Error('Not authenticated');
 
+  const isFormData = options.body instanceof FormData;
+
   const response = await fetch(`${BACKEND_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       'Authorization': `Bearer ${session.access_token}`,
       ...options.headers,
     },
