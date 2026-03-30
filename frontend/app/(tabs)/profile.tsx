@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { supabase } from "@/lib/supabase";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions } from "react-native";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal } from "react-native";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import EditProfile from "@/components/EditProfile";
@@ -30,7 +30,7 @@ type UserPost = {
   post_image_url: string;
   post_caption: string;
   collection_id: number;
-  Collection: { collection_name: string };
+  Collection: { collection_name: string } | null;
 };
 
 export default function Profile() {
@@ -56,6 +56,7 @@ export default function Profile() {
 
     //test frontend to backend connection for fetching the posts data
     const [posts, setPosts] = useState<UserPost[]>([]);
+    const [selectedPost, setSelectedPost] = useState<UserPost | null>(null);
 
     useEffect(() => {
       api.get<UserPost[]>("/api/posts")
@@ -142,13 +143,15 @@ export default function Profile() {
       {/* grid for displaying a user's posts */}
       <View style={styles.postsGrid}>
         {posts.map((post) => (
-        <View key={post.post_id} style={styles.postCard}>
-          <Image
-          source={{ uri: post.post_image_url }}
-          style={styles.postImage}
-          />
-        <Text style={styles.postTitle} numberOfLines={1}>{post.post_title}</Text>
-        </View>
+          <TouchableOpacity
+            key={post.post_id}
+            style={styles.postCard}
+            onPress={() => setSelectedPost(post)}
+            activeOpacity={0.85}
+          >
+            <Image source={{ uri: post.post_image_url }} style={styles.postImage} />
+            <Text style={styles.postTitle} numberOfLines={1}>{post.post_title}</Text>
+          </TouchableOpacity>
         ))}
       </View>
 
@@ -159,6 +162,40 @@ export default function Profile() {
       >
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
+
+      {/* post detail modal */}
+      <Modal
+        visible={!!selectedPost}
+        transparent
+        animationType="none"
+        onRequestClose={() => setSelectedPost(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedPost(null)}
+        >
+          <View style={styles.modalCard}>
+            <Image
+              source={{ uri: selectedPost?.post_image_url }}
+              style={styles.modalImage}
+            />
+            <View style={styles.modalContent}>
+              {selectedPost?.Collection?.collection_name && (
+                <View style={styles.collectionBadge}>
+                  <Text style={styles.collectionBadgeText}>
+                    ⧉ {selectedPost.Collection.collection_name}
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.modalTitle}>{selectedPost?.post_title}</Text>
+              {selectedPost?.post_caption && (
+                <Text style={styles.postCaption}>{selectedPost.post_caption}</Text>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* edit profile modal */}
       <EditProfile
@@ -303,5 +340,48 @@ const styles = StyleSheet.create({
     color: '#6b21a8',
     fontWeight: '600',
     padding: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  modalImage: {
+    width: '100%',
+    height: 300,
+  },
+  modalContent: {
+    padding: 16,
+    gap: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#6b21a8',
+  },
+  collectionBadge: {
+    backgroundColor: '#ede9fe',
+    borderRadius: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    alignSelf: 'flex-start',
+  },
+  collectionBadgeText: {
+    fontSize: 11,
+    color: '#6b21a8',
+    fontWeight: '500',
+  },
+  postCaption: {
+    fontSize: 13,
+    color: '#a78bca',
+    lineHeight: 18,
   },
 });
