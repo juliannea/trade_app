@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import { Image } from 'react-native';
 
 //testing match api call to backend
 type Match = {
@@ -11,8 +12,8 @@ type Match = {
   match_status: string;
   user_id_a: string;
   user_id_b: string;
-  user_a: { user_name: string };
-  user_b: { user_name: string };
+  user_a: { user_name: string; user_profile_image: string | null };
+  user_b: { user_name: string; user_profile_image: string | null };
 };
 
 export default function Messages() {
@@ -40,6 +41,14 @@ export default function Messages() {
     return currentUserId === match.user_id_a
       ? match.user_b?.user_name
       : match.user_a?.user_name;
+  }
+
+  //get the other user's profile picture in the match
+  function getOtherProfileImage(match: Match): string | null {
+    if (!currentUserId) return null;
+    return currentUserId === match.user_id_a
+      ? match.user_b?.user_profile_image
+      : match.user_a?.user_profile_image;
   }
 
   //get initials from username
@@ -84,7 +93,14 @@ export default function Messages() {
               >
                 {/* avatar with initial */}
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{getInitials(otherUsername)}</Text>
+                  {getOtherProfileImage(item) ? (
+                    <Image
+                      source={{ uri: getOtherProfileImage(item)! }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <Text style={styles.avatarText}>{getInitials(otherUsername)}</Text>
+                  )}
                 </View>
 
                 {/* username and matched date */}
@@ -141,6 +157,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
   matchInfo: {
     flex: 1,
   },
@@ -191,6 +212,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#f9a8d4',
     opacity: 0.6,
-    marginBottom: 18,
+    marginBottom: 4,
   },
 });

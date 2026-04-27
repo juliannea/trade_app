@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { View,Text,FlatList,StyleSheet,KeyboardAvoidingView, Platform, TextInput, TouchableOpacity } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { api } from "@/lib/api";
+import { Stack, useLocalSearchParams } from 'expo-router'
 
 //testing message api call to backend
 type Message = {
@@ -19,6 +19,8 @@ export default function Chat() {
   const [sending, setSending] = useState(false)
   const [isUserA, setIsUserA] = useState<boolean | null>(null)
   const flatListRef = useRef<FlatList<Message>>(null)
+
+  const [otherUsername] = useState('Chat')
 
   // get current user id and determine if they are user_a in this match
   useEffect(() => {
@@ -106,6 +108,15 @@ export default function Chat() {
 }
 
   return (
+    <>
+    <Stack.Screen
+      options={{
+        title: otherUsername,
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#6b21a8',
+        headerTitleStyle: { fontWeight: 'bold' },
+      }}
+    />
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -154,6 +165,7 @@ export default function Chat() {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    </>
   )
 }
 
@@ -215,7 +227,7 @@ const styles = StyleSheet.create({
   },
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
@@ -227,9 +239,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fce4ec',
     borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 2,
+    paddingHorizontal: 10,
+    paddingTop: 15,
     fontSize: 15,
     color: '#6b21a8',
     maxHeight: 100,
