@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { JwtPayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import Auth from '@/components/Auth';
-import { View } from 'react-native';
+// import { View } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 

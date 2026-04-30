@@ -21,7 +21,9 @@ import Animated, {
     interpolate,
     Extrapolation,
 } from "react-native-reanimated";
+import { useRouter } from "expo-router";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 40;
@@ -62,6 +64,12 @@ interface BackendCollection {
     collection_id: number;
     collection_name: string;
     collection_image_url: string;
+}
+
+interface MatchPopupData {
+    matchId: number;
+    userA: { username: string; profileImage: string | null };
+    userB: { username: string; profileImage: string | null };
 }
 
 //helper to transform backend post to BlindBoxItem
@@ -379,8 +387,77 @@ function FilterSheet({
     );
 }
 
+interface MatchPopupModalProps {
+    data: MatchPopupData;
+    onClose: () => void;
+    onStartChat: (matchId: number) => void;
+}
+
+function MatchPopupModal({ data, onClose, onStartChat }: MatchPopupModalProps) {
+    return (
+        <Modal visible transparent animationType="fade">
+            <View style={styles.matchOverlay}>
+                <View style={styles.matchCard}>
+                    <Text style={styles.matchTitle}>It&apos;s a Match!</Text>
+                    <Text style={styles.matchSubtitle}>
+                        You and {data.userB.username} both want to trade
+                    </Text>
+                    <View style={styles.matchAvatarRow}>
+                        <View style={styles.matchAvatarWrap}>
+                            <Image
+                                source={
+                                    data.userA.profileImage
+                                        ? { uri: data.userA.profileImage }
+                                        : require("../../assets/images/icon.png")
+                                }
+                                style={styles.matchAvatar}
+                            />
+                            <Text style={styles.matchAvatarName}>
+                                {data.userA.username}
+                            </Text>
+                        </View>
+                        <Text style={styles.matchHeart}>♥</Text>
+                        <View style={styles.matchAvatarWrap}>
+                            <Image
+                                source={
+                                    data.userB.profileImage
+                                        ? { uri: data.userB.profileImage }
+                                        : require("../../assets/images/icon.png")
+                                }
+                                style={styles.matchAvatar}
+                            />
+                            <Text style={styles.matchAvatarName}>
+                                {data.userB.username}
+                            </Text>
+                        </View>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.matchChatBtn}
+                        onPress={() => onStartChat(data.matchId)}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.matchChatBtnText}>
+                            Start Chatting
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.matchKeepBtn}
+                        onPress={onClose}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.matchKeepBtnText}>
+                            Keep Swiping
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
 //MAIN
 export default function SwipeFeedScreen() {
+    const router = useRouter();
     const [allCollections, setAllCollections] = useState<Collection[]>([]);
     const [deck, setDeck] = useState<BlindBoxItem[]>([]);
     const [activeFilters, setActiveFilters] = useState<string[]>([]);
@@ -388,6 +465,8 @@ export default function SwipeFeedScreen() {
     const [collectionsVisible, setCollectionsVisible] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [matchPopup, setMatchPopup] = useState<MatchPopupData | null>(null);
 
     const fetchCollections = useCallback(async () => {
         try {
@@ -426,6 +505,81 @@ export default function SwipeFeedScreen() {
         setActiveFilters(selected);
     };
 
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setCurrentUserId(session?.user?.id ?? null);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!currentUserId) return;
+
+        async function handleNewMatch(matchRow: {
+            match_id: number;
+            user_id_a: string;
+            user_id_b: string;
+        }) {
+            const { data: messages } = await supabase
+                .from("Message")
+                .select("match_id")
+                .eq("match_id", matchRow.match_id)
+                .limit(1);
+
+            if (messages && messages.length > 0) return;
+
+            type MatchResponse = {
+                match_id: number;
+                user_a: { user_name: string; user_profile_image: string | null };
+                user_b: { user_name: string; user_profile_image: string | null };
+            };
+
+            const matches = await api.get<MatchResponse[]>("/api/matches");
+            const match = matches.find((m) => m.match_id === matchRow.match_id);
+            if (!match) return;
+
+            setMatchPopup({
+                matchId: match.match_id,
+                userA: {
+                    username: match.user_a.user_name,
+                    profileImage: match.user_a.user_profile_image,
+                },
+                userB: {
+                    username: match.user_b.user_name,
+                    profileImage: match.user_b.user_profile_image,
+                },
+            });
+        }
+
+        const channel = supabase
+            .channel(`match_popup_${currentUserId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "Match",
+                },
+                (payload) => {
+                    const match = payload.new as {
+                        match_id: number;
+                        user_id_a: string;
+                        user_id_b: string;
+                    };
+                    if (
+                        match.user_id_a === currentUserId ||
+                        match.user_id_b === currentUserId
+                    ) {
+                        handleNewMatch(match);
+                    }
+                },
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [currentUserId]);
+
     const handleSwipeLeft = async () => {
         if (deck.length === 0) return;
 
@@ -449,7 +603,6 @@ export default function SwipeFeedScreen() {
         const currentPost = deck[0];
         setDeck((prev) => prev.slice(1));
 
-        //send swipe to backend
         try {
             await api.post("/api/swipes", {
                 post_id: currentPost.id,
@@ -624,6 +777,18 @@ export default function SwipeFeedScreen() {
                 onApply={applyFilters}
                 collections={allCollections}
             />
+
+            {/* Match Popup */}
+            {matchPopup && (
+                <MatchPopupModal
+                    data={matchPopup}
+                    onClose={() => setMatchPopup(null)}
+                    onStartChat={(matchId) => {
+                        setMatchPopup(null);
+                        router.push(`/chat/${matchId}`);
+                    }}
+                />
+            )}
         </View>
     );
 }
@@ -1034,5 +1199,99 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontSize: 14,
         fontWeight: "600",
+    },
+
+    //match popup
+    matchOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.7)",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 24,
+    },
+    matchCard: {
+        width: "100%",
+        backgroundColor: "#fff",
+        borderRadius: 32,
+        alignItems: "center",
+        paddingHorizontal: 28,
+        paddingTop: 36,
+        paddingBottom: 28,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 24,
+        elevation: 12,
+    },
+    matchTitle: {
+        fontSize: 30,
+        fontWeight: "900",
+        color: "#E8445A",
+        letterSpacing: -0.5,
+        marginBottom: 8,
+    },
+    matchSubtitle: {
+        fontSize: 15,
+        color: "#555",
+        textAlign: "center",
+        marginBottom: 28,
+    },
+    matchAvatarRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 16,
+        marginBottom: 32,
+    },
+    matchAvatarWrap: {
+        alignItems: "center",
+        gap: 8,
+    },
+    matchAvatar: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        borderWidth: 3,
+        borderColor: "#E8445A",
+        backgroundColor: "#EEE",
+    },
+    matchAvatarName: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#1A1A1A",
+    },
+    matchHeart: {
+        fontSize: 32,
+        color: "#E8445A",
+        marginBottom: 20,
+    },
+    matchChatBtn: {
+        width: "100%",
+        backgroundColor: "#E8445A",
+        borderRadius: 30,
+        height: 52,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 12,
+        shadowColor: "#E8445A",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    matchChatBtnText: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#fff",
+        letterSpacing: 0.3,
+    },
+    matchKeepBtn: {
+        height: 44,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    matchKeepBtnText: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#888",
     },
 });
