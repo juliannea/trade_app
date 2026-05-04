@@ -20,6 +20,7 @@ import Animated, {
     withTiming,
     interpolate,
     Extrapolation,
+    runOnJS,
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { api } from "@/lib/api";
@@ -115,20 +116,27 @@ function SwipeCard({ item, onSwipeLeft, onSwipeRight, isTop }: SwipeCardProps) {
             translateY.value = event.translationY * 0.3;
         })
         .onEnd((event) => {
-            if (event.translationX > SWIPE_THRESHOLD) {
-                translateX.value = withTiming(SCREEN_WIDTH * 1.5, {}, () => {
-                    "worklet";
-                    onSwipeRight();
-                });
-            } else if (event.translationX < -SWIPE_THRESHOLD) {
-                translateX.value = withTiming(-SCREEN_WIDTH * 1.5, {}, () => {
-                    "worklet";
-                    onSwipeLeft();
-                });
-            } else {
-                translateX.value = withSpring(0);
-                translateY.value = withSpring(0);
+    if (event.translationX > SWIPE_THRESHOLD) {
+        translateX.value = withTiming(SCREEN_WIDTH * 1.5, {}, (finished) => {
+            if (finished) {
+                // Since onSwipeRight is a prop function, we need to use runOnJS to call it from the worklet
+                // onSwipeRight is a function passed from the parent (SwipeFeedScreen).
+                // Because that function updates our React state, we must use runOnJS 
+                // to "signal" the JS thread once the UI-thread animation is finished.
+                runOnJS(onSwipeRight)(); 
             }
+        });
+    } else if (event.translationX < -SWIPE_THRESHOLD) {
+        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, {}, (finished) => {
+            if (finished) {
+                runOnJS(onSwipeLeft)();
+            }
+        });
+    } else {
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+    }
+
         });
 
     const animatedStyle = useAnimatedStyle(() => {
