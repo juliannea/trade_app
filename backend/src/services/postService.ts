@@ -216,3 +216,17 @@ export async function getLikedPostsFromMatch(userId: string, matchId: number) {
   if (error) throw new AppError(error.message, 500);
   return data ?? [];
 }
+
+//update post caption 
+export async function updatePostCaption(postId: number, post_caption: string) {
+  const { data, error } = await supabase
+    .from('Post')
+    .update({ post_caption })
+    .eq('post_id', postId)
+    .select()
+    .single();
+
+  if (error) throw new AppError(error.message, 500);
+  if (!data) throw new AppError('Post not found', 404);
+  return data;
+}
