@@ -52,8 +52,11 @@ export default function CreatePost({ visible, onClose }: Props) {
     try {
       const formData = new FormData();
       console.log("image object:", image);
-      const blob = await fetch(image.uri).then(r => r.blob());
-      formData.append("image", blob, image.fileName ?? `photo_${Date.now()}.jpg`);
+      formData.append("image", {
+        uri: image.uri,
+        name: image.fileName ?? `photo_${Date.now()}.jpg`,
+        type: image.mimeType ?? "image/jpeg",
+      } as any);
       formData.append("post_title", title);
       formData.append("post_caption", caption);
       formData.append("collection_id", String(selectedCollection));
