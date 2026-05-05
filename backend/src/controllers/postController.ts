@@ -73,3 +73,17 @@ export async function getLikedPostsFromMatch(req: AuthRequest, res: Response) {
     res.status(err.status ?? 500).json({ error: err.message });
   }
 }
+
+export async function updatePostCaption(req: AuthRequest, res: Response) {
+  try {
+    const postId = Number(req.params.postId);
+    const { post_caption } = req.body;
+
+    if (!post_caption) return res.status(400).json({ error: 'post_caption is required' });
+
+    const post = await PostService.updatePostCaption(postId, post_caption);
+    res.json(post);
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+}
