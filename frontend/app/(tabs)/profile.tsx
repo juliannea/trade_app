@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { supabase } from "@/lib/supabase";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback  } from "react";
+import { useFocusEffect } from "expo-router";
 import { api } from "@/lib/api";
 import EditProfile from "@/components/EditProfile";
 
@@ -58,11 +59,13 @@ export default function Profile() {
     const [posts, setPosts] = useState<UserPost[]>([]);
     const [selectedPost, setSelectedPost] = useState<UserPost | null>(null);
 
-    useEffect(() => {
-      api.get<UserPost[]>("/api/posts")
+    useFocusEffect(
+      useCallback(() => {
+        api.get<UserPost[]>("/api/posts")
         .then((data) => setPosts(data))
         .catch((err) => console.error(err));
-    }, []);
+      }, [])
+    );
 
     //determine user intials to display in profile picture
     const initials = user
