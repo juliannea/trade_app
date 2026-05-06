@@ -52,15 +52,29 @@ export async function insertPost(
 }
 
 //GET returns all created posts of the logged in user, requires authentication 
+//posts that were already traded don't show up
 export async function getOwnPosts(userId: string) {
-  const {data, error} = await supabase
+  //find every post part of a completed trade 
+  const{ data: trades } = await supabase
+    .from('Trade')
+    .select('post_id_a, post_id_b')
+    .eq('trade_status', 'COMPLETE');
+
+  const tradedPostIds = trades?.flatMap(t => [t.post_id_a, t.post_id_b]) ?? [];
+
+  let query = supabase
     .from('Post')
     .select(`post_id, collection_id, post_title, post_image_url, post_caption,
       Collection!Post_collection_id_fkey(
         collection_name
-      )`) 
-      //collection join to get the collection name for each post in the users profile feed
+      )`)
     .eq('user_id', userId);
+
+  if (tradedPostIds.length > 0) {
+    query = query.not('post_id', 'in', `(${tradedPostIds.join(',')})`);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw new AppError(error.message, 500);
   if (!data)  throw new AppError('No posts found', 404);
@@ -120,6 +134,16 @@ export async function getPostsByCollection(collectionIds: number[] | null, userI
 
 //DELETE a post by the post_id, requires authentication   
 export async function deletePost(postId: number) {
+  //don't allow users to delete post part of a pending or completed trade
+  const { data: activeTrade } = await supabase
+    .from('Trade')
+    .select('trade_id')
+    .or(`post_id_a.eq.${postId},post_id_b.eq.${postId}`)
+    .in('trade_status', ['PENDING', 'COMPLETE'])
+    .single();
+
+  if (activeTrade) throw new AppError('Cannot delete a post that is part of an active trade', 400);
+
   //find the image path of the post 
   const { data: post, error: fetchError } = await supabase
     .from('Post')
@@ -129,6 +153,14 @@ export async function deletePost(postId: number) {
 
 
   if (fetchError) throw new AppError(fetchError.message, 500);
+
+  //delete swipes that reference this post
+  const { error: swipeError } = await supabase
+    .from('Swipe')
+    .delete()
+    .eq('post_id', postId);
+
+  if (swipeError) throw new AppError(swipeError.message, 500);
 
   //delete the file from supabase storage 
   if (post?.post_image_url) {
@@ -212,4 +244,18 @@ export async function getLikedPostsFromMatch(userId: string, matchId: number) {
 
   if (error) throw new AppError(error.message, 500);
   return data ?? [];
+}
+
+//update post caption 
+export async function updatePostCaption(postId: number, post_caption: string) {
+  const { data, error } = await supabase
+    .from('Post')
+    .update({ post_caption })
+    .eq('post_id', postId)
+    .select()
+    .single();
+
+  if (error) throw new AppError(error.message, 500);
+  if (!data) throw new AppError('Post not found', 404);
+  return data;
 }

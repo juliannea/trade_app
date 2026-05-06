@@ -21,4 +21,6 @@ router.delete('/:postId', requireAuth, PostController.deletePost);
 //GET returns all the posts the the user liked from another user they're matched with 
 router.get('/match/:matchId/liked', requireAuth, PostController.getLikedPostsFromMatch);
 
+//UPDATE allows users to update their caption
+router.patch('/:postId/caption', requireAuth, PostController.updatePostCaption);
 export default router;
