@@ -11,6 +11,7 @@ import {
     ScrollView,
     Pressable,
     ActivityIndicator,
+    DeviceEventEmitter
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -629,6 +630,14 @@ export default function SwipeFeedScreen() {
     //fetch posts whenever filters change
     useEffect(() => {
         fetchPosts();
+    }, [fetchPosts]);
+
+    //listen for when a new post is added
+    useEffect(() => {
+      const subscription = DeviceEventEmitter.addListener('postCreated', () => {
+        fetchPosts();
+      });
+      return () => subscription.remove();
     }, [fetchPosts]);
 
     return (
