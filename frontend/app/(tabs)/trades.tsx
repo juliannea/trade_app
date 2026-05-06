@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Platform, ActivityIndicator, Alert, Image,
+  Platform, ActivityIndicator, Alert, Image, DeviceEventEmitter
 } from 'react-native'
 import { api } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
+import { useFocusEffect } from 'expo-router'
 
 type TradeStatus = 'PENDING' | 'COMPLETE' | 'CANCELLED'
 
@@ -185,9 +186,39 @@ export default function TradesScreen() {
     }
   }, [currentUserId])
 
+  //refresh page when tab is clicked
+  useFocusEffect(
+    useCallback(() => {
+      loadTrades()
+    }, [loadTrades])
+  )
+
+  //list to event emitter
   useEffect(() => {
-    loadTrades()
+    const subscription = DeviceEventEmitter.addListener('tradeCreated', () => {
+      loadTrades()
+    })
+    return () => subscription.remove()
   }, [loadTrades])
+
+  //supabase real time to listen for cancel or complete changes
+  useEffect(() => {
+    if (!currentUserId) return
+
+    const channel = supabase
+      .channel('trade_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'Trade' },
+        () => {
+          loadTrades()
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [currentUserId, loadTrades])
+
 
   const handleConfirm = (id: number) => {
     Alert.alert(

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import {
   View, Text, FlatList, StyleSheet, KeyboardAvoidingView, Platform,
-  TextInput, TouchableOpacity, Modal, Image, ScrollView, Alert, ActivityIndicator,
+  TextInput, TouchableOpacity, Modal, Image, ScrollView, Alert, ActivityIndicator, DeviceEventEmitter
 } from 'react-native'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/lib/api'
@@ -171,6 +171,7 @@ export default function Chat() {
         postIdA: selectedMyPost.post_id,
         postIdB: selectedTheirPost.post_id,
       })
+      DeviceEventEmitter.emit('postCreated');
       setShowTradeModal(false)
       Alert.alert('Trade Proposed!', 'Your trade has been sent. Check the Trades tab for updates.')
     } catch (err: any) {

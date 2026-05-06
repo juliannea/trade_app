@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { api, apiRequest } from "@/lib/api";
+import { DeviceEventEmitter } from 'react-native'; 
 
 type Collection = {
   collection_id: number;
@@ -65,7 +66,8 @@ export default function CreatePost({ visible, onClose }: Props) {
         method: "POST",
         body: formData,
       });
-
+      
+      DeviceEventEmitter.emit('postCreated');// to instantly show on profile page
       setImage(null);
       setTitle("");
       setCaption("");
