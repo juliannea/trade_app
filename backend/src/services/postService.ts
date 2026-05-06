@@ -74,7 +74,7 @@ export async function getOwnPosts(userId: string) {
     query = query.not('post_id', 'in', `(${tradedPostIds.join(',')})`);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query.order('post_id', {ascending: false});
 
   if (error) throw new AppError(error.message, 500);
   if (!data)  throw new AppError('No posts found', 404);
