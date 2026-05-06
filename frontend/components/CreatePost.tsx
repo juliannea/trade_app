@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { api, apiRequest } from "@/lib/api";
-import { DeviceEventEmitter } from 'react-native'; 
+import { DeviceEventEmitter, Platform } from 'react-native'; 
 
 type Collection = {
   collection_id: number;
@@ -51,17 +51,26 @@ export default function CreatePost({ visible, onClose }: Props) {
 
     setLoading(true);
     try {
-      const formData = new FormData();
+      const formData = new FormData(); 
       console.log("image object:", image);
+
+    if (Platform.OS === "web") {
+      
+      const response = await fetch(image.uri);
+      const blob = await response.blob();
+      formData.append("image", blob, image.fileName ?? `photo_${Date.now()}.jpg`);
+    } else {
       formData.append("image", {
         uri: image.uri,
         name: image.fileName ?? `photo_${Date.now()}.jpg`,
         type: image.mimeType ?? "image/jpeg",
       } as any);
-      formData.append("post_title", title);
-      formData.append("post_caption", caption);
-      formData.append("collection_id", String(selectedCollection));
-
+    }
+    
+    formData.append("post_title", title);
+    formData.append("post_caption", caption);
+    formData.append("collection_id", String(selectedCollection));
+    
       await apiRequest("/api/posts", {
         method: "POST",
         body: formData,
