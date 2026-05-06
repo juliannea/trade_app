@@ -154,6 +154,14 @@ export async function deletePost(postId: number) {
 
   if (fetchError) throw new AppError(fetchError.message, 500);
 
+  //if this post is part of a cancelled trade delete it from the trade table
+  const { error: tradeError } = await supabase
+    .from('Trade')
+    .delete()
+    .or(`post_id_a.eq.${postId},post_id_b.eq.${postId}`)
+    .eq('trade_status', 'CANCELLED');
+  if (tradeError) throw new AppError(tradeError.message, 500);
+
   //delete swipes that reference this post
   const { error: swipeError } = await supabase
     .from('Swipe')
