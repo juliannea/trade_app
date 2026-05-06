@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal } from "react-native";
 import { useEffect, useState, useCallback  } from "react";
 import { useFocusEffect } from "expo-router";
+import { RefreshControl, DeviceEventEmitter } from "react-native";
 import { api } from "@/lib/api";
 import EditProfile from "@/components/EditProfile";
 
@@ -38,6 +39,7 @@ export default function Profile() {
 
     //testing frontend to backend connection by fetching the users data
     const [user, setUser] = useState<UserProfile | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         api.get<UserProfile>("/api/users")
@@ -67,6 +69,30 @@ export default function Profile() {
       }, [])
     );
 
+    //listen for the emit to know to refresh page
+    useEffect(() => {
+      const subscription = DeviceEventEmitter.addListener('postCreated', () => {
+        api.get<UserPost[]>('/api/posts')
+          .then((data) => setPosts(data))
+          .catch((err) => console.error(err));
+        });
+      return () => subscription.remove();
+    }, []);
+
+    //to refresh page
+    const onRefresh = async () => {
+    setRefreshing(true);
+
+    try {
+      const data = await api.get<UserPost[]>("/api/posts");
+      setPosts(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
     //determine user intials to display in profile picture
     const initials = user
     ? `${user.user_first_name?.[0] ?? ''}${user.user_last_name?.[0] ?? ''}`.toUpperCase()
@@ -87,6 +113,12 @@ export default function Profile() {
     <ScrollView
       style={{ flex: 1 }}
       contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
+      }
     >
       {/* display user's full name at top of screen */}
       <Text style={styles.fullName}>
