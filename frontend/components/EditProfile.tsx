@@ -13,6 +13,7 @@ type EditProfileProps = {
     user_last_name: string;
     user_phone: string | null;
     user_bio: string | null;
+    user_location: string | null;
   };
 };
  
@@ -28,6 +29,7 @@ export default function EditProfile({
   const [lastName, setLastName] = useState(currentUser.user_last_name ?? "");
   const [phone, setPhone] = useState(currentUser.user_phone ?? "");
   const [bio, setBio] = useState(currentUser.user_bio ?? "");
+  const [location, setLocation] = useState(currentUser.user_location ?? "");
   //saving request set to false
   const [saving, setSaving] = useState(false);
 
@@ -38,6 +40,7 @@ export default function EditProfile({
     setLastName(currentUser.user_last_name ?? "");
     setPhone(currentUser.user_phone ?? "");
     setBio(currentUser.user_bio ?? "");
+    setLocation(currentUser.user_location ?? "");
   }, [currentUser]);
  
   //saving function
@@ -55,6 +58,7 @@ export default function EditProfile({
         user_last_name: lastName.trim(),
         user_phone: phone.trim() || null,
         user_bio: bio.trim() || null,
+        user_location: location.trim() || null, 
       });
       onSave(updated);
       onClose();
@@ -133,6 +137,18 @@ export default function EditProfile({
               placeholderTextColor="#c4b5d4"
               multiline
               numberOfLines={3}
+            />
+          </View>
+
+          {/* location field */} 
+          <View style={styles.field}>
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="City, State"
+              placeholderTextColor="#c4b5d4"
             />
           </View>
 

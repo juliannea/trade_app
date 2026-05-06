@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { supabase } from "@/lib/supabase";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal } from "react-native";
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput } from "react-native";
 import { useEffect, useState, useCallback  } from "react";
 import { useFocusEffect } from "expo-router";
 import { RefreshControl, DeviceEventEmitter } from "react-native";
@@ -9,8 +9,9 @@ import EditProfile from "@/components/EditProfile";
 
 //determine screen dimensions for post card placement
 const screenWidth = Dimensions.get('window').width;
+const maxWidth = Math.min(screenWidth, 900);
 const numColumns = screenWidth > 600 ? 3 : 2;
-const cardWidth = (screenWidth - 48 - (numColumns - 1) * 8) / numColumns;
+const cardWidth = (maxWidth - 48 - (numColumns - 1) * 8) / numColumns;
 
 //testing user profile api call to backend
 type UserProfile = {
@@ -23,6 +24,7 @@ type UserProfile = {
     user_profile_image: string | null;
     user_created_at: string | null;
     user_bio: string | null;
+    user_location: string | null;
 };
 
 //testing user post api call to backend
@@ -64,7 +66,10 @@ export default function Profile() {
     useFocusEffect(
       useCallback(() => {
         api.get<UserPost[]>("/api/posts")
-        .then((data) => setPosts(data))
+        .then((data) => {
+          const sorted = data.sort((a, b) => b.post_id - a.post_id);
+          setPosts(sorted);
+        })
         .catch((err) => console.error(err));
       }, [])
     );
@@ -76,6 +81,16 @@ export default function Profile() {
           .then((data) => setPosts(data))
           .catch((err) => console.error(err));
         });
+      return () => subscription.remove();
+    }, []);
+
+    //listen for the emit to know to refresh page
+    useEffect(() => {
+      const subscription = DeviceEventEmitter.addListener('postDeleted', () => {
+        api.get<UserPost[]>('/api/posts')
+          .then((data) => setPosts(data))
+          .catch((err) => console.error(err));
+      });
       return () => subscription.remove();
     }, []);
 
@@ -93,25 +108,54 @@ export default function Profile() {
     }
   };
 
-    //determine user intials to display in profile picture
-    const initials = user
-    ? `${user.user_first_name?.[0] ?? ''}${user.user_last_name?.[0] ?? ''}`.toUpperCase()
-    : '?';
+  const [editingCaption, setEditingCaption] = useState(false);
+  const [newCaption, setNewCaption] = useState('');
 
-    //extract month and year from timestamp
-    const joinedDate = user?.user_created_at
-    ? `Trading since ${new Date(user.user_created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-    : null;
+  //determine user intials to display in profile picture
+  const initials = user
+  ? `${user.user_first_name?.[0] ?? ''}${user.user_last_name?.[0] ?? ''}`.toUpperCase()
+  : '?';
 
-    //temporary location
-    const userLocation = 'New York, NY'
+  //extract month and year from timestamp
+  const joinedDate = user?.user_created_at
+  ? `Trading since ${new Date(user.user_created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+  : null;
 
-    // sets edit profile modal to not visible
-    const [editModalVisible, setEditModalVisible] = useState(false);
+  //sets edit profile modal to not visible
+  const [editModalVisible, setEditModalVisible] = useState(false);
+
+  //handle post deleting
+  async function handleDeletePost(postId: number | undefined) {
+    if (!postId) return;
+    try {
+      await api.delete(`/api/posts/${postId}`);
+      setPosts(prev => prev.filter(p => p.post_id !== postId));
+      setSelectedPost(null);
+      setEditingCaption(false);
+      DeviceEventEmitter.emit('postDeleted');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  //handle caption editing
+  async function handleEditCaption(postId: number | undefined) {
+    if (!postId) return;
+    try {
+      await api.patch(`/api/posts/${postId}/caption`, { post_caption: newCaption });
+      setPosts(prev => prev.map(p => 
+        p.post_id === postId ? { ...p, post_caption: newCaption } : p
+      ));
+      setSelectedPost(prev => prev ? { ...prev, post_caption: newCaption } : prev);
+      setEditingCaption(false);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   return (
     <ScrollView
-      style={{ flex: 1 }}
+      sstyle={{ flex: 1 }}
       contentContainerStyle={styles.container}
       refreshControl={
         <RefreshControl
@@ -120,10 +164,6 @@ export default function Profile() {
         />
       }
     >
-      {/* display user's full name at top of screen */}
-      <Text style={styles.fullName}>
-      {user?.user_first_name} {user?.user_last_name}
-      </Text>
 
       {/* display profile picture or a placeholder with initials */}
       <View style={styles.pfpWrapper}>
@@ -140,6 +180,11 @@ export default function Profile() {
       </View>
 
       <View style={styles.nameSection}>
+
+        {/* display user's full name */}
+        <Text style={styles.fullName}>
+        {user?.user_first_name} {user?.user_last_name}
+        </Text>
         
         {/* display username and bio */}
         <Text style={styles.userName}>@{user?.user_name}</Text>
@@ -154,21 +199,20 @@ export default function Profile() {
             <Text style={styles.joinedBadgeText}>⏱︎ {joinedDate}</Text>
           </View>
           )}
-          <View style={styles.joinedBadge}>
-            <Text style={styles.joinedBadgeText}>𖡡 {userLocation}</Text>
-          </View>
+          {user?.user_location && (
+            <View style={styles.joinedBadge}>
+              <Text style={styles.joinedBadgeText}>𖡡 {user.user_location}</Text>
+            </View>
+          )}
         </View>
 
       </View>
 
-      {/* display edit profile and share profile buttons */}
+      {/* display edit profile button */}
       <View style={styles.buttonRow}>
         {/* edit profile modal is visible */}
         <TouchableOpacity style={styles.actionButton} onPress={() => setEditModalVisible(true)}>
           <Text style={styles.actionButtonText}>Edit Profile</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionButtonText}>Share Profile</Text>
         </TouchableOpacity>
         </View>
 
@@ -190,7 +234,7 @@ export default function Profile() {
         ))}
       </View>
 
-      {/* sign out button*/}
+      {/* sign out button */}
       <TouchableOpacity
         style={styles.signOutButton}
         onPress={() => supabase.auth.signOut()}
@@ -203,14 +247,28 @@ export default function Profile() {
         visible={!!selectedPost}
         transparent
         animationType="none"
-        onRequestClose={() => setSelectedPost(null)}
+        onPress={() => {
+          setSelectedPost(null);
+          setEditingCaption(false);
+        }}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setSelectedPost(null)}
         >
-          <View style={styles.modalCard}>
+          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+
+            {/* post close button */}
+            <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => {
+                  setSelectedPost(null);
+                  setEditingCaption(false);
+                }}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            
             <Image
               source={{ uri: selectedPost?.post_image_url }}
               style={styles.modalImage}
@@ -224,9 +282,44 @@ export default function Profile() {
                 </View>
               )}
               <Text style={styles.modalTitle}>{selectedPost?.post_title}</Text>
-              {selectedPost?.post_caption && (
-                <Text style={styles.postCaption}>{selectedPost.post_caption}</Text>
+              
+              {/* caption that is editable */}
+              {editingCaption ? (
+                <View>
+                  <TextInput
+                    style={styles.captionInput}
+                    value={newCaption}
+                    onChangeText={setNewCaption}
+                    multiline
+                    autoFocus
+                  />
+                  <TouchableOpacity onPress={() => handleEditCaption(selectedPost?.post_id)}>
+                    <Text style={styles.saveCaption}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.captionRow}>
+                  <Text style={styles.postCaption}>
+                    {selectedPost?.post_caption || 'Add a caption...'}
+                  </Text>
+                  <TouchableOpacity onPress={() => {
+                    setNewCaption(selectedPost?.post_caption ?? '');
+                    setEditingCaption(true);
+                  }}>
+                    <Text style={styles.editCaptionText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
               )}
+
+              {/* delete button */}
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  style={styles.deletePostButton}
+                  onPress={() => handleDeletePost(selectedPost?.post_id)}
+                >
+                  <Text style={styles.deletePostText}>Delete Post</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </TouchableOpacity>
@@ -243,6 +336,7 @@ export default function Profile() {
           user_last_name: user?.user_last_name ?? '',
           user_phone: user?.user_phone ?? null,
           user_bio: user?.user_bio ?? null,
+          user_location: user?.user_location ?? null,
         }}
       />
     </ScrollView>
@@ -257,6 +351,9 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 40,
     paddingHorizontal: 24,
+    maxWidth: 900,
+    alignSelf: 'center',
+    width: '100%',
   },
   pfpWrapper: {
     paddingTop: 40,
@@ -284,7 +381,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#6b21a8',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   userName: {
     fontSize: 16,
@@ -358,6 +455,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
     marginTop: 8,
   },
   postCard: {
@@ -388,14 +487,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
   },
   modalImage: {
     width: '100%',
-    height: 300,
+    height: 200,
+    resizeMode: 'contain',
+    backgroundColor: '#f5f5f7',
   },
   modalContent: {
-    padding: 16,
-    gap: 8,
+    padding: 20,
+    gap: 12,
   },
   modalTitle: {
     fontSize: 18,
@@ -418,5 +521,67 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#a78bca',
     lineHeight: 18,
+  },
+  captionInput: {
+    borderWidth: 1.5,
+    borderColor: '#e9d5ff',
+    borderRadius: 12,
+    padding: 10,
+    fontSize: 13,
+    color: '#6b21a8',
+    marginBottom: 6,
+    textAlignVertical: 'top',
+    minHeight: 60,
+  },
+  saveCaption: {
+    color: '#6b21a8',
+    fontWeight: '700',
+    fontSize: 13,
+    textAlign: 'right',
+    marginBottom: 8,
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  deletePostButton: {
+    flex: 1,
+    backgroundColor: '#fce4ec',
+    borderRadius: 20,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  deletePostText: {
+    color: '#e11d48',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  captionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  editCaptionText: {
+    color: '#6b21a8',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
