@@ -155,7 +155,7 @@ export default function Profile() {
 
   return (
     <ScrollView
-      sstyle={{ flex: 1 }}
+      style={{ flex: 1 }}
       contentContainerStyle={styles.container}
       refreshControl={
         <RefreshControl
