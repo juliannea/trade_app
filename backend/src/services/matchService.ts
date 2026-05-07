@@ -15,9 +15,14 @@ export async function getUserMatches(userId: string) {
          ),
          user_b:User!Match_user_id_b_fkey(
             user_name, user_profile_image
+         ),
+         Message(
+          message_content, message_created_at
          )`)
       .or(`user_id_a.eq.${userId},user_id_b.eq.${userId}`) // get all matches where the current user is either user_id_a or user_id_b
-      .eq('match_status', 'ACTIVE'); // only return active matches
+      .eq('match_status', 'ACTIVE') // only return active matches
+      .order('message_created_at', {referencedTable: 'Message', ascending: false}) // order matches by the most recent message
+      .limit(1, {referencedTable: 'Message'}); // only return the most recent message for each match
       
    if (error) throw new AppError(error.message, 500);
    return data;
