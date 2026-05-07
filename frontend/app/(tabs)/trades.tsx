@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Platform, ActivityIndicator, Alert, Image, DeviceEventEmitter
+  Platform, ActivityIndicator, Modal, Pressable, Image, DeviceEventEmitter
 } from 'react-native'
 import { api } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
@@ -152,12 +152,46 @@ function TradeCard({
   )
 }
 
+interface ConfirmConfig {
+  title: string
+  message: string
+  confirmText: string
+  destructive?: boolean
+  onConfirm: () => void
+}
+
+function ConfirmModal({ config, onClose }: { config: ConfirmConfig; onClose: () => void }) {
+  return (
+    <Modal visible transparent animationType="fade">
+      <Pressable style={dialogStyles.overlay} onPress={onClose}>
+        <Pressable style={dialogStyles.box} onPress={() => {}}>
+          <Text style={dialogStyles.title}>{config.title}</Text>
+          <Text style={dialogStyles.message}>{config.message}</Text>
+          <View style={dialogStyles.btnRow}>
+            <TouchableOpacity style={dialogStyles.cancelBtn} onPress={onClose} activeOpacity={0.75}>
+              <Text style={dialogStyles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[dialogStyles.confirmBtn, config.destructive && dialogStyles.confirmBtnDestructive]}
+              onPress={() => { config.onConfirm(); onClose(); }}
+              activeOpacity={0.85}
+            >
+              <Text style={dialogStyles.confirmText}>{config.confirmText}</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  )
+}
+
 export default function TradesScreen() {
   const [tab, setTab] = useState<'active' | 'history'>('active')
   const [active, setActive] = useState<Trade[]>([])
   const [history, setHistory] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState('')
+  const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -221,47 +255,46 @@ export default function TradesScreen() {
 
 
   const handleConfirm = (id: number) => {
-    Alert.alert(
-      'Complete Trade',
-      'Are you sure you want to mark this trade as complete?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          style: 'default',
-          onPress: async () => {
-            try {
-              await api.patch(`/api/trades/${id}`, { trade_status: 'COMPLETE' })
-              await loadTrades()
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to complete trade')
-            }
-          },
-        },
-      ],
-    )
+    setConfirmConfig({
+      title: 'Complete Trade',
+      message: 'Are you sure you want to mark this trade as complete?',
+      confirmText: 'Complete',
+      onConfirm: async () => {
+        try {
+          await api.patch(`/api/trades/${id}`, { trade_status: 'COMPLETE' })
+          await loadTrades()
+        } catch (err: any) {
+          setConfirmConfig({
+            title: 'Error',
+            message: err.message || 'Failed to complete trade',
+            confirmText: 'OK',
+            onConfirm: () => {},
+          })
+        }
+      },
+    })
   }
 
   const handleCancel = (id: number) => {
-    Alert.alert(
-      'Cancel Trade',
-      'Are you sure you want to cancel this trade?',
-      [
-        { text: 'Keep', style: 'cancel' },
-        {
-          text: 'Cancel Trade',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.patch(`/api/trades/${id}`, { trade_status: 'CANCELLED' })
-              await loadTrades()
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to cancel trade')
-            }
-          },
-        },
-      ],
-    )
+    setConfirmConfig({
+      title: 'Cancel Trade',
+      message: 'Are you sure you want to cancel this trade?',
+      confirmText: 'Cancel Trade',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await api.patch(`/api/trades/${id}`, { trade_status: 'CANCELLED' })
+          await loadTrades()
+        } catch (err: any) {
+          setConfirmConfig({
+            title: 'Error',
+            message: err.message || 'Failed to cancel trade',
+            confirmText: 'OK',
+            onConfirm: () => {},
+          })
+        }
+      },
+    })
   }
 
   const trades = tab === 'active' ? active : history
@@ -318,6 +351,10 @@ export default function TradesScreen() {
             ))
           )}
         </ScrollView>
+      )}
+
+      {confirmConfig && (
+        <ConfirmModal config={confirmConfig} onClose={() => setConfirmConfig(null)} />
       )}
     </View>
   )
@@ -542,5 +579,74 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#ABABAB',
+  },
+})
+
+const dialogStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  box: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  message: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#E8E8E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#555',
+  },
+  confirmBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#E8445A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmBtnDestructive: {
+    backgroundColor: '#FF3B30',
+  },
+  confirmText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
   },
 })

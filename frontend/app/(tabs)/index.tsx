@@ -13,6 +13,7 @@ import {
     ActivityIndicator,
     DeviceEventEmitter
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
     useAnimatedStyle,
@@ -28,7 +29,7 @@ import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const CARD_WIDTH = SCREEN_WIDTH - 40;
+const CARD_WIDTH = Math.min(SCREEN_WIDTH - 40, 480);
 const SWIPE_THRESHOLD = 100;
 
 //types
@@ -46,7 +47,6 @@ interface BlindBoxItem {
 interface Collection {
     id: string;
     name: string;
-    image: string;
     collection_id?: number; //backend ID
     collection_name?: string; //backend name
 }
@@ -92,7 +92,6 @@ function transformCollection(col: BackendCollection): Collection {
     return {
         id: col.collection_id.toString(),
         name: col.collection_name,
-        image: col.collection_image_url,
         collection_id: col.collection_id,
         collection_name: col.collection_name,
     };
@@ -104,9 +103,10 @@ interface SwipeCardProps {
     onSwipeLeft: () => void;
     onSwipeRight: () => void;
     isTop: boolean;
+    imageHeight: number;
 }
 
-function SwipeCard({ item, onSwipeLeft, onSwipeRight, isTop }: SwipeCardProps) {
+function SwipeCard({ item, onSwipeLeft, onSwipeRight, isTop, imageHeight }: SwipeCardProps) {
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
 
@@ -186,7 +186,7 @@ function SwipeCard({ item, onSwipeLeft, onSwipeRight, isTop }: SwipeCardProps) {
                 >
                     <Text style={styles.nopeText}>PASS</Text>
                 </Animated.View>
-                <View style={styles.imageContainer}>
+                <View style={[styles.imageContainer, { height: imageHeight }]}>
                     <Image
                         source={{ uri: item.image }}
                         style={styles.cardImage}
@@ -268,10 +268,6 @@ function CollectionsModal({
                                 onPress={() => toggle(col.id)}
                                 activeOpacity={0.8}
                             >
-                                <Image
-                                    source={{ uri: col.image }}
-                                    style={styles.collectionImage}
-                                />
                                 <Text
                                     style={[
                                         styles.collectionName,
@@ -467,6 +463,8 @@ function MatchPopupModal({ data, onClose, onStartChat }: MatchPopupModalProps) {
 //MAIN
 export default function SwipeFeedScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
+    const [cardStackHeight, setCardStackHeight] = useState(0);
     const [allCollections, setAllCollections] = useState<Collection[]>([]);
     const [deck, setDeck] = useState<BlindBoxItem[]>([]);
     const [activeFilters, setActiveFilters] = useState<string[]>([]);
@@ -640,13 +638,15 @@ export default function SwipeFeedScreen() {
       return () => subscription.remove();
     }, [fetchPosts]);
 
+    // image height fills the stack minus the card info area (~110px), capped at card width for desktop
+    const imageHeight = cardStackHeight > 0
+        ? Math.max(Math.min(cardStackHeight - 110, CARD_WIDTH), 120)
+        : SCREEN_HEIGHT * 0.38;
+
     return (
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.iconBtn}>
-                    <Text style={styles.iconText}>👤🔍</Text>
-                </TouchableOpacity>
                 <Text style={styles.headerTitle}>Swipe Feed</Text>
                 <TouchableOpacity
                     style={[
@@ -700,7 +700,10 @@ export default function SwipeFeedScreen() {
             )}
 
             {/* Card Stack */}
-            <View style={styles.cardStack}>
+            <View
+                style={styles.cardStack}
+                onLayout={(e) => setCardStackHeight(e.nativeEvent.layout.height)}
+            >
                 {isLoading ? (
                     <ActivityIndicator size="large" color="#E8445A" />
                 ) : error ? (
@@ -748,6 +751,7 @@ export default function SwipeFeedScreen() {
                                     onSwipeLeft={handleSwipeLeft}
                                     onSwipeRight={handleSwipeRight}
                                     isTop={isTop}
+                                    imageHeight={imageHeight}
                                 />
                             </View>
                         );
@@ -756,7 +760,7 @@ export default function SwipeFeedScreen() {
             </View>
 
             {/* Action Buttons */}
-            <View style={styles.actionRow}>
+            <View style={[styles.actionRow, { paddingBottom: 49 + insets.bottom + 20 }]}>
                 <TouchableOpacity
                     style={styles.actionBtnPass}
                     onPress={handleSwipeLeft}
@@ -905,7 +909,6 @@ const styles = StyleSheet.create({
     },
     imageContainer: {
         width: "100%",
-        height: SCREEN_HEIGHT * 0.42,
         backgroundColor: "#EEE",
     },
     cardImage: {
@@ -974,7 +977,6 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "center",
         gap: 32,
-        paddingBottom: Platform.OS === "ios" ? 110 : 90,
         paddingTop: 16,
     },
     actionBtnPass: {
@@ -1162,7 +1164,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff",
         borderRadius: 20,
         alignItems: "center",
-        paddingVertical: 24,
+        paddingVertical: 16,
         paddingHorizontal: 12,
         borderWidth: 2,
         borderColor: "transparent",
@@ -1175,13 +1177,6 @@ const styles = StyleSheet.create({
     collectionCellSelected: {
         borderColor: "#E8445A",
         backgroundColor: "#FFF5F7",
-    },
-    collectionImage: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
-        marginBottom: 12,
-        backgroundColor: "#EEE",
     },
     collectionName: {
         fontSize: 16,
