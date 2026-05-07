@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import {Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert} from "react-native";
-import { api } from "@/lib/api";
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Platform } from "react-native";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { api, apiRequest } from "@/lib/api";
  
 //testing user profile api call to backend
 type EditProfileProps = {
@@ -14,6 +16,7 @@ type EditProfileProps = {
     user_phone: string | null;
     user_bio: string | null;
     user_location: string | null;
+    user_profile_image: string | null;
   };
 };
  
@@ -30,6 +33,7 @@ export default function EditProfile({
   const [phone, setPhone] = useState(currentUser.user_phone ?? "");
   const [bio, setBio] = useState(currentUser.user_bio ?? "");
   const [location, setLocation] = useState(currentUser.user_location ?? "");
+  const [newImage, setNewImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   //saving request set to false
   const [saving, setSaving] = useState(false);
 
@@ -42,6 +46,18 @@ export default function EditProfile({
     setBio(currentUser.user_bio ?? "");
     setLocation(currentUser.user_location ?? "");
   }, [currentUser]);
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setNewImage(result.assets[0]);
+    }
+  };
  
   //saving function
   async function handleSave() {
@@ -52,6 +68,24 @@ export default function EditProfile({
     }
     setSaving(true);
     try {
+      if (newImage) {
+        const formData = new FormData();
+        if (Platform.OS === 'web') {
+          const response = await fetch(newImage.uri);
+          const blob = await response.blob();
+          formData.append("image", blob, newImage.fileName ?? `photo_${Date.now()}.jpg`);
+        } else {
+          formData.append("image", {
+            uri: newImage.uri,
+            name: newImage.fileName ?? `photo_${Date.now()}.jpg`,
+            type: newImage.mimeType ?? "image/jpeg",
+          } as any);
+        }
+        await apiRequest("/api/users/profile-picture", {
+          method: "PATCH",
+          body: formData,
+        });
+      }
       const updated = await api.patch("/api/users", {
         user_name: userName.trim(),
         user_first_name: firstName.trim(),
@@ -89,6 +123,21 @@ export default function EditProfile({
         </View>
     
         <ScrollView contentContainerStyle={styles.form}>
+          {/* profile picture field */}
+          <View style={styles.pfpSection}>
+            <TouchableOpacity onPress={pickImage}>
+              {newImage ? (
+                <Image source={{ uri: newImage.uri }} style={styles.pfpPreview} />
+              ) : currentUser.user_profile_image ? (
+                <Image source={{ uri: currentUser.user_profile_image }} style={styles.pfpPreview} />
+              ) : (
+                <View style={styles.pfpPlaceholder}>
+                  <Text style={styles.pfpPlaceholderText}>+ Photo</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.pfpHint}>Tap to change photo</Text>
+          </View>
           {/* first name field */}  
           <View style={styles.field}>
             <Text style={styles.label}>First Name</Text>
@@ -226,5 +275,34 @@ const styles = StyleSheet.create({
   bioInput: {
     height: 90,
     textAlignVertical: "top",
+  },
+  pfpSection: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  pfpPreview: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  pfpPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#f3e8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#e9d5ff',
+  },
+  pfpPlaceholderText: {
+    color: '#a78bca',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  pfpHint: {
+    fontSize: 12,
+    color: '#a78bca',
+    marginTop: 6,
   },
 });

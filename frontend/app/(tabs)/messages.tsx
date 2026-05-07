@@ -14,6 +14,7 @@ type Match = {
   user_id_b: string;
   user_a: { user_name: string; user_profile_image: string | null };
   user_b: { user_name: string; user_profile_image: string | null };
+  Message: { message_content: string; message_created_at: string }[];
 };
 
 export default function Messages() {
@@ -28,11 +29,45 @@ export default function Messages() {
     });
   }, []);
 
-  //fetch all matches for current user
+  //fetch all matches for current user sorted by most recent message
   useEffect(() => {
     api.get<Match[]>('/api/matches')
-      .then((data) => setMatches(data))
+      .then((data) => {
+        const sorted = data.sort((a, b) => {
+          const aTime = a.Message?.[0]?.message_created_at ?? a.matched_at;
+          const bTime = b.Message?.[0]?.message_created_at ?? b.matched_at;
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        });
+        setMatches(sorted);
+      })
       .catch((err) => console.error(err));
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('messages-list')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Message',
+        },
+        () => {
+          api.get<Match[]>('/api/matches')
+            .then((data) => {
+              const sorted = data.sort((a, b) => {
+                const aTime = a.Message?.[0]?.message_created_at ?? a.matched_at;
+                const bTime = b.Message?.[0]?.message_created_at ?? b.matched_at;
+                return new Date(bTime).getTime() - new Date(aTime).getTime();
+              });
+              setMatches(sorted);
+            })
+            .catch((err) => console.error(err));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel) };
   }, []);
 
   //get the other user's username in the match
@@ -150,7 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#f472b6',
+    borderColor: '#e8445a',
   },
   avatarText: {
     color: 'white',
@@ -181,7 +216,7 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: '#f9a8d4',
+    backgroundColor: '#e8445a',
     opacity: 0.5,
   },
   emptyState: {
@@ -210,7 +245,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     height: 1,
-    backgroundColor: '#f9a8d4',
+    backgroundColor: '#e8445a',
     opacity: 0.6,
     marginBottom: 4,
   },
