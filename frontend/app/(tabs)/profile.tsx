@@ -329,7 +329,11 @@ export default function Profile() {
       <EditProfile
         visible={editModalVisible}
         onClose={() => setEditModalVisible(false)}
-        onSave={(updated) => setUser((prev) => prev ? { ...prev, ...updated } : prev)}
+        onSave={() => {
+          api.get<UserProfile>("/api/users")
+            .then((data) => setUser(data))
+            .catch((err) => console.error(err));
+        }}
         currentUser={{
           user_name: user?.user_name ?? '',
           user_first_name: user?.user_first_name ?? '',
@@ -337,6 +341,7 @@ export default function Profile() {
           user_phone: user?.user_phone ?? null,
           user_bio: user?.user_bio ?? null,
           user_location: user?.user_location ?? null,
+          user_profile_image: user?.user_profile_image ?? null,
         }}
       />
     </ScrollView>
@@ -392,7 +397,7 @@ const styles = StyleSheet.create({
   divider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#f9a8d4',
+    backgroundColor: '#e8445a',
     opacity: 0.6,
     marginBottom: 18,
   },

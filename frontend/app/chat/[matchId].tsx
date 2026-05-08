@@ -214,6 +214,7 @@ export default function Chat() {
       <Stack.Screen
         options={{
           title: otherUsername,
+          headerBackTitleVisible: false,
           headerStyle: { backgroundColor: '#ffffff' },
           headerTintColor: '#6b21a8',
           headerTitleStyle: { fontWeight: 'bold' },
