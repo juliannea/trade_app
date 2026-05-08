@@ -254,6 +254,59 @@ export async function getLikedPostsFromMatch(userId: string, matchId: number) {
   return data ?? [];
 }
 
+//get what other user liked from mine
+export async function getMyPostsLikedByOther(userId: string, matchId: number) {
+
+  //find the match
+  const { data: match, error: matchError } = await supabase
+    .from('Match')
+    .select('user_id_a, user_id_b')
+    .eq('match_id', matchId)
+    .single();
+
+  if (matchError || !match) throw new AppError('Match not found', 404);
+  if (match.user_id_a !== userId && match.user_id_b !== userId) {
+    throw new AppError('Unauthorized', 403);
+  }
+
+  const otherUserId = match.user_id_a === userId ? match.user_id_b : match.user_id_a;
+
+  //find what they like 
+  const { data: theirSwipes, error: swipeError } = await supabase
+    .from('Swipe')
+    .select('post_id')
+    .eq('user_id', otherUserId)
+    .eq('swipe_direction', 'RIGHT');
+
+  if (swipeError) throw new AppError(swipeError.message, 500);
+  const theirLikedPostIds = theirSwipes?.map(s => s.post_id) ?? [];
+  if (theirLikedPostIds.length === 0) return [];
+
+  //exclude posts alr in an active or completed trade 
+  const { data: trades } = await supabase
+    .from('Trade')
+    .select('post_id_a, post_id_b')
+    .in('trade_status', ['PENDING', 'COMPLETE']);
+
+  const tradedPostIds = trades?.flatMap(t => [t.post_id_a, t.post_id_b]) ?? [];
+
+  let query = supabase
+    .from('Post')
+    .select(`post_id, post_title, post_image_url, post_caption, user_id,
+      User!Post_user_id_fkey(user_name),
+      Collection!Post_collection_id_fkey(collection_name)`)
+    .eq('user_id', userId)
+    .in('post_id', theirLikedPostIds);
+
+  if (tradedPostIds.length > 0) {
+    query = query.not('post_id', 'in', `(${tradedPostIds.join(',')})`);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new AppError(error.message, 500);
+  return data ?? [];
+}
+
 //update post caption 
 export async function updatePostCaption(postId: number, post_caption: string) {
   const { data, error } = await supabase

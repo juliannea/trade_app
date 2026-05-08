@@ -24,3 +24,6 @@ router.get('/match/:matchId/liked', requireAuth, PostController.getLikedPostsFro
 //UPDATE allows users to update their caption
 router.patch('/:postId/caption', requireAuth, PostController.updatePostCaption);
 export default router;
+
+//GET other liked post 
+router.get('/match/:matchId/my-posts', requireAuth, PostController.getMyPostsLikedByOther);

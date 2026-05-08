@@ -87,3 +87,15 @@ export async function updatePostCaption(req: AuthRequest, res: Response) {
     res.status(err.status ?? 500).json({ error: err.message });
   }
 }
+
+export async function getMyPostsLikedByOther(req: AuthRequest, res: Response) {
+  try {
+    const matchId = Number(req.params.matchId);
+    if (isNaN(matchId)) return res.status(400).json({ error: 'Invalid match_id' });
+
+    const posts = await PostService.getMyPostsLikedByOther(req.userId!, matchId);
+    res.json(posts);
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message });
+  }
+}
