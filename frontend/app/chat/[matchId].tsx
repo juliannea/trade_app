@@ -121,10 +121,13 @@ export default function Chat() {
     return () => { supabase.removeChannel(channel) }
   }, [matchId])
 
-  //fetch current user's own posts via API (backend auth handles ownership)
   const fetchMyOwnPosts = useCallback((): Promise<Post[]> => {
     return api.get<Post[]>('/api/posts')
   }, [])
+
+  const fetchMyPostsLikedByOther = useCallback((): Promise<Post[]> => {
+    return api.get<Post[]>(`/api/posts/match/${matchId}/my-posts`)
+  }, [matchId])
 
   //fetch the other person's posts that the current user liked (existing endpoint)
   const fetchTheirLikedPosts = useCallback((): Promise<Post[]> => {
@@ -150,9 +153,8 @@ export default function Chat() {
     setShowTradeModal(true)
     setLoadingPosts(true)
 
-    //use allSettled so one failure doesn't wipe out the other result
     const [myResult, theirResult] = await Promise.allSettled([
-      fetchMyOwnPosts(),
+      fetchMyPostsLikedByOther(),
       fetchTheirLikedPosts(),
     ])
 
@@ -160,7 +162,7 @@ export default function Chat() {
     if (theirResult.status === 'fulfilled') setTheirLikedPosts(theirResult.value)
 
     setLoadingPosts(false)
-  }, [fetchMyOwnPosts, fetchTheirLikedPosts])
+  }, [fetchMyPostsLikedByOther, fetchTheirLikedPosts])
 
   const handleSubmitTrade = async () => {
     if (!selectedMyPost || !selectedTheirPost) return
@@ -214,7 +216,6 @@ export default function Chat() {
       <Stack.Screen
         options={{
           title: otherUsername,
-          headerBackTitleVisible: false,
           headerStyle: { backgroundColor: '#ffffff' },
           headerTintColor: '#6b21a8',
           headerTitleStyle: { fontWeight: 'bold' },
@@ -337,7 +338,7 @@ export default function Chat() {
               <Text style={styles.sectionLabel}>Your Offer</Text>
               <Text style={styles.sectionHint}>Pick one of your posts to trade away</Text>
               {myPosts.length === 0 ? (
-                <Text style={styles.sectionEmpty}>You haven&apos;t posted anything yet</Text>
+                <Text style={styles.sectionEmpty}>They haven&apos;t liked any of your posts yet</Text>
               ) : (
                 <View style={styles.postGrid}>
                   {myPosts.map(post => (
