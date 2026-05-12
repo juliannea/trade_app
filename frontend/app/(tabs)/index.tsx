@@ -818,7 +818,7 @@ export default function SwipeFeedScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F5F5F7",
+        backgroundColor: "#fafafa",
     },
 
     //header
@@ -829,12 +829,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: Platform.OS === "ios" ? 60 : 40,
         paddingBottom: 16,
-        backgroundColor: "#F5F5F7",
+        backgroundColor: "#fafafa",
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: "700",
-        color: "#1A1A1A",
+        color: "#6b21a8",
         letterSpacing: -0.3,
     },
     iconBtn: {

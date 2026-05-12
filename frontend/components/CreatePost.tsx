@@ -193,8 +193,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   previewImage: {
-    width: "100%",
-    height: "100%",
+    width: 200,
+    height: 200,
+    borderRadius: 16,
+    alignSelf: "center",
   },
   input: {
     borderWidth: 1.5,
