@@ -363,7 +363,7 @@ export default function TradesScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F0F0F3',
+    backgroundColor: '#fafafa',
   },
   header: {
     paddingHorizontal: 20,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#6b21a8',
     letterSpacing: -0.3,
   },
 
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     color: '#ABABAB',
   },
   tabLabelActive: {
-    color: '#1A1A1A',
+    color: '#6b21a8',
   },
   tabUnderline: {
     height: 2.5,

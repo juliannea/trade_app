@@ -351,7 +351,7 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fafafa',
     alignItems: 'center',
     paddingTop: 20,
     paddingBottom: 40,
