@@ -1,6 +1,6 @@
 # Trading App for Collectibles 
 ## App access 
-You can access our app with the following link: https://delulu-exchange.expo.app/
+You can access our app with the following link: ``` https://delulu-exchange.expo.app/ ```
 ## Deployment
 ## Frontend 
 Our backend is deployed using EAS Update
