@@ -2,9 +2,9 @@
 ## App access 
 You can access our app with the following link: ``` https://delulu-exchange.expo.app/ ```
 ## Deployment
-## Frontend 
-Our backend is deployed using EAS Update
-For more information here's a link https://docs.expo.dev/eas-update/introduction/
+### Frontend 
+Our backend is deployed using EAS Update. 
+For more information here's a link ```https://docs.expo.dev/eas-update/introduction/```
 ### Backend
 Our backend is deployed on Render at:
 ```
@@ -19,6 +19,9 @@ To use the deployed backend instead of localhost, update `frontend/.env`:
 EXPO_PUBLIC_BACKEND_URL=https://trade-app-gjde.onrender.com
 
 ```
+## Database Schema
+<img width="1227" height="611" alt="Screenshot 2026-05-13 at 11 26 58 AM" src="https://github.com/user-attachments/assets/05fd8629-5bb4-4540-bfcb-d8928066adb8" />
+
 
 ## Authentication 
 ### Supabase Auth Set-Up 
