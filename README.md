@@ -2,7 +2,7 @@
 ## App access 
 You can access our app with the following link: https://delulu-exchange.expo.app/
 ## Deployment
-##Frontend 
+## Frontend 
 Our backend is deployed using EAS Update
 For more information here's a link https://docs.expo.dev/eas-update/introduction/
 ### Backend
