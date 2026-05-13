@@ -49,9 +49,9 @@ export default function RootLayout() {
   return (
   <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={AppTheme}>
-      <Stack>
+      <Stack initialRouteName="(tabs)">
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
